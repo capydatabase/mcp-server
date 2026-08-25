@@ -30,21 +30,25 @@
     "format": "oxfmt --write src",
     "format:check": "oxfmt --check src",
     "prepublishOnly": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build",
-    "release": "release-kit"
+    "release": "release-kit",
+    "prepare": "if git rev-parse --git-dir >/dev/null 2>&1; then lefthook install; else echo 'no git repository - skipping lefthook install'; fi"
   },
   "dependencies": {
-    "@capydb/sdk": "^1.5.0",
+    "@capydb/sdk": "^1.7.0",
     "@modelcontextprotocol/server": "^2.0.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
-    "oxfmt": "0.64.0",
-    "oxlint": "1.79.0",
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
+    "@types/node": "^26.3.0",
+    "lefthook": "^2.1.10",
+    "oxfmt": "0.65.0",
+    "oxlint": "1.80.0",
     "tsdown": "^0.22.14",
     "typescript": "next"
   },
-  "packageManager": "pnpm@11.22.0",
+  "packageManager": "pnpm@11.24.0",
   "engines": {
     "node": ">=24.19.0"
   },

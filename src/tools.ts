@@ -757,7 +757,8 @@ export function registerTools(server: McpServer, client: CapyDBClient, auth: Aut
         "BEFORE any UPDATE or DELETE, check the WHERE clause actually scopes the rows you mean: an unqualified or too-broad statement silently rewrites every row, and the original values are not recoverable from the table afterwards. " +
         "For anything destructive, call create_restore_point FIRST - that is what makes the change reversible, and reconstructing overwritten values from a related table afterwards is lossy (it recovers the rows, not necessarily the exact per-column history). " +
         "ALSO append RETURNING old.*, new.* to any UPDATE or DELETE on a Postgres 18 cell (check with get_project). Postgres 18 returns both the pre- and post-image of every affected row, so the exact per-column values you are about to overwrite come back in the result and land in SQL history - the restore point is the recovery path, this is the record of what changed. It is a syntax error on 16/17, where the restore point is the only safeguard. " +
-        "Prefer running the statement against a preview database first. Results are capped (default 200 rows, max 1000) and queries time out after 15 seconds. Every execution is recorded in the project's SQL history.",
+        "This tool always targets the project's own database - there is no preview_id parameter. To rehearse a statement against a preview first, create_preview_database then run it through the preview's own connection string (get_preview_connection_strings) with a Postgres client; get_schema and generate_types accept preview_id if you only need to inspect one. " +
+        "Results are capped (default 200 rows, max 1000) and queries time out after 15 seconds. Every execution is recorded in the project's SQL history.",
       inputSchema: z.object({
         project_id: z.string().describe("Project id."),
         query: z.string().describe("SQL statement to execute."),
@@ -868,16 +869,56 @@ export function registerTools(server: McpServer, client: CapyDBClient, auth: Aut
     {
       title: "List project alerts",
       description:
-        "List the project's open alerts plus alerts resolved within the last 30 days, newest first. " +
+        "List the project's OPEN alerts, newest first. " +
         "Covers threshold alerts on storage and connection usage against the plan limits, backup failure/staleness alerts, " +
         "and warning-severity health advisories (cache_hit, blocked_queries, deadlocks, vacuum) derived from the periodic " +
-        "metrics sweep. An alert is open while resolved_at is absent; it resolves on its own when the condition clears.",
+        "metrics sweep. An alert is open while resolved_at is absent; it resolves on its own when the condition clears. " +
+        "Set include_resolved to also see alerts resolved in the last 30 days - useful for asking whether a condition has " +
+        "recurred, but a busy project accumulates hundreds of them.",
       inputSchema: z.object({
         project_id: z.string().describe("Project id."),
+        include_resolved: z
+          .boolean()
+          .optional()
+          .describe(
+            "Include alerts that have already resolved (default false - only open alerts are returned).",
+          ),
+        limit: z
+          .number()
+          .int()
+          .positive()
+          .max(200)
+          .optional()
+          .describe("Maximum alerts to return, newest first (default 50, max 200)."),
       }),
       annotations: { readOnlyHint: true },
     },
-    async ({ project_id }) => run(auth, () => client.listProjectAlerts(project_id)),
+    async ({ project_id, include_resolved, limit }) =>
+      run(auth, async () => {
+        // The control plane returns open alerts plus everything resolved in the
+        // last 30 days, unbounded. That is right for the dashboard's history view
+        // and wrong for a tool result: on a project with a flapping condition it
+        // is tens of kilobytes of resolved rows, nearly all of it irrelevant to
+        // the question the caller is actually asking. Narrow it here rather than
+        // changing an endpoint the dashboard depends on.
+        const alerts = await client.listProjectAlerts(project_id);
+        const relevant =
+          include_resolved === true
+            ? alerts
+            : alerts.filter(
+                (alert) => alert.resolved_at === undefined || alert.resolved_at === null,
+              );
+        const cap = limit ?? 50;
+        return {
+          alerts: relevant.slice(0, cap),
+          returned: Math.min(relevant.length, cap),
+          total_matching: relevant.length,
+          open_count: alerts.filter(
+            (alert) => alert.resolved_at === undefined || alert.resolved_at === null,
+          ).length,
+          include_resolved: include_resolved === true,
+        };
+      }),
   );
 
   server.registerTool(

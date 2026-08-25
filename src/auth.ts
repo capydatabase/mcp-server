@@ -38,9 +38,16 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** One organization's saved credentials - mirrors the CLI's `OrganizationConfig`. */
+/**
+ * One organization's saved credentials - mirrors the CLI's `OrganizationConfig`.
+ *
+ * `api_key` is optional because the CLI's `Active()` returns an entry whatever it
+ * holds: an entry can carry only endpoint configuration (`api_url`/`app_url`).
+ * Dropping those entries is what used to hide the saved dashboard origin from the
+ * device login, which then derived a 404ing approval URL.
+ */
 interface OrganizationEntry {
-  api_key: string;
+  api_key?: string;
   api_url?: string;
   app_url?: string;
   name?: string;
@@ -97,13 +104,25 @@ export function userConfigPath(): string {
 }
 
 /**
- * Dashboard origin for approval URLs - mirrors the CLI's `DefaultAppURL`:
- * `CAPYDB_APP_URL` env, else strip the `/api/capydb` suffix from the API URL,
+ * Dashboard origin for approval URLs - mirrors the CLI's `UserConfig.AppURL()`:
+ * `CAPYDB_APP_URL` env, else the `app_url` saved beside the credential, else
+ * `DefaultAppURL(apiURL)` - strip the `/api/capydb` suffix from the API URL,
  * else the API URL origin itself, else capydb.dev.
+ *
+ * The saved value has to outrank the derivation: an API URL is not always a path
+ * under the dashboard origin (`https://api.capydb.dev` is a sibling host), and
+ * deriving from one that is not yields an approval link that 404s.
+ *
+ * `CAPYDB_APP_URL` outranks the saved value, unlike the CLI - here the env var is
+ * the documented override for pointing at another deployment; see the caller in
+ * `AuthManager.create()`, which also drops a saved `app_url` that no longer pairs
+ * with the API URL in use.
  */
-export function dashboardUrl(apiUrl: string): string {
+export function dashboardUrl(apiUrl: string, savedAppUrl?: string): string {
   const fromEnv = nonEmpty(process.env["CAPYDB_APP_URL"]);
   if (fromEnv !== undefined) return trimUrl(fromEnv);
+  const fromConfig = nonEmpty(savedAppUrl);
+  if (fromConfig !== undefined) return trimUrl(fromConfig);
   const trimmed = trimUrl(apiUrl);
   if (trimmed.endsWith("/api/capydb")) return trimmed.slice(0, -"/api/capydb".length);
   if (trimmed !== "") return trimmed;
@@ -149,15 +168,20 @@ async function readStoredConfig(path: string): Promise<StoredConfig | undefined>
   if (isRecord(rawOrgs)) {
     for (const [orgId, value] of Object.entries(rawOrgs)) {
       if (!isRecord(value)) continue;
-      const apiKey = nonEmpty(optionalString(value["api_key"]));
-      if (apiKey === undefined) continue;
-      organizations[orgId] = {
-        api_key: apiKey,
+      const entry: OrganizationEntry = {
         api_url: optionalString(value["api_url"]),
         app_url: optionalString(value["app_url"]),
         name: optionalString(value["name"]),
         slug: optionalString(value["slug"]),
       };
+      const apiKey = nonEmpty(optionalString(value["api_key"]));
+      if (apiKey !== undefined) entry.api_key = apiKey;
+      // Keep credential-less entries: their api_url/app_url still describe which
+      // deployment to talk to and which dashboard to send the user to.
+      if (apiKey === undefined && entry.api_url === undefined && entry.app_url === undefined) {
+        continue;
+      }
+      organizations[orgId] = entry;
     }
   }
   if (Object.keys(organizations).length > 0) {
@@ -167,7 +191,11 @@ async function readStoredConfig(path: string): Promise<StoredConfig | undefined>
   // Legacy pre-multi-org shape: a flat single-credential object. Read it
   // compatibly but never write it back - the CLI owns that migration.
   const legacyKey = nonEmpty(optionalString(parsed["api_key"]));
-  if (legacyKey === undefined) return undefined;
+  const legacyApiUrl = optionalString(parsed["api_url"]);
+  const legacyAppUrl = optionalString(parsed["app_url"]);
+  if (legacyKey === undefined && legacyApiUrl === undefined && legacyAppUrl === undefined) {
+    return undefined;
+  }
   const legacyOrgId = nonEmpty(optionalString(parsed["organization_id"])) ?? DEFAULT_ORG_KEY;
   return {
     active_org: legacyOrgId,
@@ -199,6 +227,8 @@ function activeOrganization(config: StoredConfig): OrganizationEntry | undefined
 export class AuthManager {
   /** Resolved control plane base URL (no trailing slash). */
   readonly apiUrl: string;
+  /** Resolved dashboard origin for approval URLs (no trailing slash). */
+  readonly appUrl: string;
 
   private cachedKey: string | undefined;
   private pending: PendingLogin | undefined;
@@ -206,10 +236,12 @@ export class AuthManager {
 
   private constructor(
     apiUrl: string,
+    appUrl: string,
     apiKey: string | undefined,
     source: "env" | "config" | "none",
   ) {
     this.apiUrl = trimUrl(apiUrl);
+    this.appUrl = appUrl;
     this.cachedKey = apiKey;
     this.source = source;
   }
@@ -220,7 +252,8 @@ export class AuthManager {
     const envUrl = nonEmpty(process.env["CAPYDB_API_URL"]);
 
     if (envKey !== undefined) {
-      return new AuthManager(envUrl ?? DEFAULT_API_URL, envKey, "env");
+      const apiUrl = envUrl ?? DEFAULT_API_URL;
+      return new AuthManager(apiUrl, dashboardUrl(apiUrl), envKey, "env");
     }
 
     let stored: OrganizationEntry | undefined;
@@ -234,7 +267,19 @@ export class AuthManager {
     }
 
     const apiUrl = envUrl ?? nonEmpty(stored?.api_url) ?? DEFAULT_API_URL;
-    return new AuthManager(apiUrl, stored?.api_key, stored !== undefined ? "config" : "none");
+    // A saved `app_url` describes the dashboard paired with the saved `api_url`.
+    // When CAPYDB_API_URL retargets the control plane somewhere else (staging, a
+    // self-hosted deployment) that pairing no longer holds, so fall back to
+    // deriving from the URL actually in use - otherwise a login session opened on
+    // one deployment is advertised with a link to another one's dashboard.
+    const savedAppUrl =
+      envUrl === undefined || trimUrl(envUrl) === trimUrl(stored?.api_url ?? "")
+        ? stored?.app_url
+        : undefined;
+    // `source` describes the credential, so a config that held only endpoint
+    // configuration still counts as "none" - the first tool call starts a login.
+    const source = stored?.api_key !== undefined ? "config" : "none";
+    return new AuthManager(apiUrl, dashboardUrl(apiUrl, savedAppUrl), stored?.api_key, source);
   }
 
   /** Human-readable credential source, for startup diagnostics on stderr. */
@@ -278,7 +323,7 @@ export class AuthManager {
     try {
       const config = await readStoredConfig(userConfigPath());
       const entry = config !== undefined ? activeOrganization(config) : undefined;
-      if (entry !== undefined) {
+      if (entry?.api_key !== undefined) {
         this.cachedKey = entry.api_key;
         return { ok: true, apiKey: entry.api_key };
       }
@@ -337,7 +382,7 @@ export class AuthManager {
       ? Date.now() + LOGIN_SESSION_FALLBACK_TTL_MS
       : expiresAtParsed;
 
-    const approvalUrl = `${dashboardUrl(this.apiUrl)}/dashboard/cli/login?session=${encodeURIComponent(sessionId)}`;
+    const approvalUrl = `${this.appUrl}/dashboard/cli/login?session=${encodeURIComponent(sessionId)}`;
     console.error(`capydb-mcp: device login started - approve at ${approvalUrl}`);
     return { sessionId, pollToken, expiresAt, approvalUrl };
   }
@@ -444,7 +489,7 @@ export class AuthManager {
     const entry: OrganizationEntry = {
       api_key: options.apiKey,
       api_url: this.apiUrl,
-      app_url: dashboardUrl(this.apiUrl),
+      app_url: this.appUrl,
     };
     const name = nonEmpty(options.organizationName);
     if (name !== undefined) entry.name = name;

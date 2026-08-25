@@ -1,0 +1,3 @@
+[mcp_servers.capydb-local]
+command = "node"
+args = ["/Users/dominikospritis/DevFolder/My-Projects/capydb/mcp-server/dist/index.js"]

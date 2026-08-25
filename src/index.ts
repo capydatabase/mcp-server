@@ -17,17 +17,17 @@
  * - CAPYDB_API_URL (optional) - control plane base URL,
  *                    defaults to https://capydb.dev/api/capydb.
  * - CAPYDB_APP_URL (optional) - dashboard origin for approval URLs; derived
- *                    from CAPYDB_API_URL when unset.
+ *                    from CAPYDB_API_URL when unset. Required when the API URL
+ *                    is not <dashboard>/api/capydb, or the approval link 404s.
  */
 
 import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
 
+import { version as SERVER_VERSION } from "../package.json" with { type: "json" };
 import { AuthManager } from "./auth.js";
 import { CapyDBClient } from "./client.js";
 import { registerTools } from "./tools.js";
-
-const SERVER_VERSION = "0.2.0";
 
 async function main(): Promise<void> {
   // Auth and the API client are process-scoped, not per-connection: AuthManager
