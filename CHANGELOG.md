@@ -4,7 +4,9 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
-## [Unreleased] - ships as v1.5.0
+## [Unreleased]
+
+## [1.6.0] - 2026-08-31
 
 ### Added
 
@@ -123,3 +125,12 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
   databases, backups, restore points, restores, imports, schema and type generation, tables and rows,
   SQL, logs and observability. All diagnostics go to stderr; production-overwrite restore is
   deliberately not exposed as a tool.
+
+[Unreleased]: https://github.com/capy-base/mcp-server/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/capy-base/mcp-server/compare/v1.4.1...v1.6.0
+[1.4.1]: https://github.com/capy-base/mcp-server/compare/v1.4.0...v1.4.1
+[1.4.0]: https://github.com/capy-base/mcp-server/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/capy-base/mcp-server/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/capy-base/mcp-server/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/capy-base/mcp-server/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/capy-base/mcp-server/releases/tag/v1.0.0
