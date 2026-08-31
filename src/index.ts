@@ -44,11 +44,33 @@ async function main(): Promise<void> {
   // pass `legacy: 'reject'`.
   serveStdio(
     () => {
-      const server = new McpServer({
-        name: "capydb",
-        title: "CapyDB",
-        version: SERVER_VERSION,
-      });
+      const server = new McpServer(
+        {
+          name: "capydb",
+          title: "CapyDB",
+          version: SERVER_VERSION,
+          description:
+            "Official CapyDB MCP server - managed Postgres projects, preview databases, backups, restores, and SQL for AI agents.",
+          websiteUrl: "https://capydb.dev",
+          icons: [
+            { src: "https://capydb.dev/favicon.svg", mimeType: "image/svg+xml" },
+            {
+              src: "https://capydb.dev/web-app-manifest-192x192.png",
+              mimeType: "image/png",
+              sizes: ["192x192"],
+            },
+          ],
+        },
+        {
+          instructions: [
+            "CapyDB is managed Postgres. Cross-tool conventions:",
+            "- Mutating tools (create_preview_database, create_backup, restore, import_database, extension changes) return a job: poll get_job until its state is completed or failed.",
+            "- If a tool result carries a device-login approval URL, relay that URL to the user, wait for their approval, then retry the tool.",
+            "- Before destructive SQL, an import, or a restore into an existing preview, call create_restore_point first so the change is reversible.",
+            "- Connection-string results embed live database credentials: never log them or write them into files, commits, or summaries.",
+          ].join("\n"),
+        },
+      );
       registerTools(server, client, auth);
       return server;
     },

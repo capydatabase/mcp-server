@@ -4,7 +4,37 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [Unreleased] - ships as v1.5.0
+
+### Added
+
+- Every statement `run_sql` sends is tagged `/*source='capydb-mcp'*/`, so agent traffic is
+  separable from application traffic in the project's SQL history. Query *statistics* are not
+  yet split by tag - pg_stat_statements identifies a statement by its parse tree, so a tagged
+  statement still merges with an identically shaped untagged one; the tag is written now so
+  the stats layer can become tag-aware later.
+
+- `create_project` accepts `environment` (`production` | `non_production`). The control plane
+  defaults an omitted environment to production, so until now every database created over MCP was a
+  production one - agents could not create the non-production databases that some destructive flows
+  (like restore-overwrite) are gated on. Found by a parity audit against the dashboard's WebMCP
+  surface, which already exposed the field.
+- `get_usage`: organization storage, connection and database counts against plan limits, with a
+  per-project breakdown - parity with the WebMCP tool of the same name. The organization is derived
+  from the API key's projects; `organization_id` is only needed when no project exists yet.
+- The `run_sql`, `get_table_rows` and `get_logs` descriptions now tell the model to treat result
+  rows and log lines as data, never as instructions - the same prompt-injection guidance the WebMCP
+  surface ships via `untrustedContentHint` (which has no MCP-spec equivalent).
+- The server now advertises its full 2026-era identity: `description`, `websiteUrl`, and `icons`
+  (the capydb.dev favicon SVG + 192px PNG) on `serverInfo`, surfaced in both the 2026 `server/discover`
+  response and the 2025 `initialize` result. It also declares `instructions` with the cross-tool
+  conventions individual tool descriptions cannot carry: poll `get_job` after mutating tools, relay
+  device-login approval URLs to the user, `create_restore_point` before destructive changes, and never
+  persist secret-bearing connection strings.
+- Three export tools: `export_database` (queue a `pg_dump` custom-format export as an async job),
+  `list_exports`, and `get_export_download` (short-lived presigned download URL). Exports are
+  read-only and expire after 7 days; the SDK dependency moves to `@capydb/sdk@^1.8.0` for the
+  `ProjectExport`/`ExportDownload` types.
 
 ### Fixed
 
@@ -20,6 +50,13 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
   another one's dashboard link. The resolved value is what gets persisted after a login.
 
 ### Changed
+
+- `run_sql` description rewritten around the control plane's new mechanical guard: an `UPDATE` or
+  `DELETE` with no `WHERE` and any `TRUNCATE` are now refused rather than run. The description is
+  explicit that this does not make the tool safe - a too-broad `WHERE` still passes.
+- `suggest_indexes` description covers `estimated_cost_reduction_pct`, including that an absent
+  reduction is not the same as zero.
+- `get_observability` lists the three new advisory kinds.
 
 - `list_alerts` returns only OPEN alerts by default, capped at 50, with `include_resolved` and
   `limit` to widen it. The endpoint returns open alerts plus everything resolved in the last 30 days,

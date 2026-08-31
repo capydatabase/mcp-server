@@ -16,13 +16,16 @@ import type {
   CreateRestoreRequest,
   DatabaseSchema,
   DatabaseTable,
+  ExportDownload,
   GeneratedTypes,
   ImportPreflightResult,
   Job,
+  OrganizationUsage,
   PreviewDatabase,
   Project,
   ProjectAlert,
   IndexAdvisorReport,
+  ProjectExport,
   ProjectExtension,
   ProjectLogs,
   ProjectObservability,
@@ -34,6 +37,32 @@ import type {
 } from "./types.js";
 
 export const DEFAULT_API_URL = "https://capydb.dev/api/capydb";
+
+/**
+ * sqlcommenter tag appended to every statement this server runs, so agent
+ * traffic is attributable in SQL history and query statistics.
+ *
+ * The format is the sqlcommenter convention (key='value' pairs in a trailing
+ * SQL comment), which Postgres carries through into the statement text.
+ */
+const SQL_SOURCE_TAG = "/*source='capydb-mcp'*/";
+
+/**
+ * Appends the source tag, unless it is already there (a statement replayed
+ * through this client twice must not accumulate tags).
+ *
+ * The tag goes at the END of the statement: a leading comment would sit before
+ * a leading keyword and break callers that inspect the first token, and a
+ * trailing comment survives a trailing semicolon either way.
+ */
+function tagQuery(query: string): string {
+  const trimmed = query.trimEnd();
+  if (trimmed.includes(SQL_SOURCE_TAG)) {
+    return query;
+  }
+  const withoutTrailingSemicolon = trimmed.replace(/;+$/, "");
+  return `${withoutTrailingSemicolon} ${SQL_SOURCE_TAG}`;
+}
 
 /** Error raised for non-2xx control plane responses. */
 export class CapyDBApiError extends Error {
@@ -116,6 +145,14 @@ export class CapyDBClient {
 
   async createProject(body: CreateProjectRequest): Promise<{ project: Project; job: Job }> {
     return await this.request("POST", "/v1/projects", { body });
+  }
+
+  async getOrganizationUsage(organizationId: string): Promise<OrganizationUsage> {
+    const data = await this.request<{ usage: OrganizationUsage }>(
+      "GET",
+      `/v1/organizations/${organizationId}/usage`,
+    );
+    return data.usage;
   }
 
   async listProjects(organizationId?: string): Promise<Project[]> {
@@ -216,6 +253,29 @@ export class CapyDBClient {
     return data.backups ?? [];
   }
 
+  async createExport(projectId: string): Promise<{ export_id: string; job: Job }> {
+    return this.request<{ export_id: string; job: Job }>(
+      "POST",
+      `/v1/projects/${encodeURIComponent(projectId)}/exports`,
+    );
+  }
+
+  async listExports(projectId: string): Promise<ProjectExport[]> {
+    const data = await this.request<{ exports: ProjectExport[] | null }>(
+      "GET",
+      `/v1/projects/${encodeURIComponent(projectId)}/exports`,
+    );
+    return data.exports ?? [];
+  }
+
+  async getExportDownload(projectId: string, exportId: string): Promise<ExportDownload> {
+    const data = await this.request<{ download: ExportDownload }>(
+      "GET",
+      `/v1/projects/${encodeURIComponent(projectId)}/exports/${encodeURIComponent(exportId)}/download`,
+    );
+    return data.download;
+  }
+
   async listProjectExtensions(projectId: string): Promise<ProjectExtension[]> {
     const data = await this.request<{ extensions: ProjectExtension[] | null }>(
       "GET",
@@ -286,11 +346,30 @@ export class CapyDBClient {
 
   // ---- Studio (SQL + data browser) ------------------------------------------
 
+  /**
+   * Runs a statement against the project database.
+   *
+   * Two things happen here that the caller does not ask for:
+   *
+   * 1. The statement is tagged with a sqlcommenter comment identifying it as
+   *    agent traffic, so the project's SQL history can separate "an agent did
+   *    this" from "the application did this" - the first question anyone asks
+   *    when a statement is a surprise.
+   *
+   *    Note this does NOT yet separate the two in query STATISTICS:
+   *    pg_stat_statements derives its identifier from the parse tree, so a
+   *    tagged statement merges into the same entry as an identically shaped
+   *    untagged one. Making the stats layer tag-aware is separate work; the
+   *    tag is written now so the history is right and the stats can catch up.
+   * 2. `allow_unqualified_writes` is never set. The control plane refuses an
+   *    UPDATE or DELETE with no WHERE and any TRUNCATE unless a caller opts
+   *    out, and an agent is precisely the caller that must not.
+   */
   async runSql(projectId: string, body: SQLQueryRequest): Promise<SQLQueryResult> {
     const data = await this.request<{ result: SQLQueryResult }>(
       "POST",
       `/v1/projects/${encodeURIComponent(projectId)}/sql`,
-      { body },
+      { body: { ...body, query: tagQuery(body.query) } },
     );
     return data.result;
   }
