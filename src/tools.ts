@@ -133,7 +133,13 @@ export function registerTools(server: McpServer, client: CapyDBClient, auth: Aut
       run(auth, async () => {
         let created: { project: Project; job: Job };
         try {
-          created = await client.createProject({ name, environment, postgres_version, region, slug });
+          created = await client.createProject({
+            name,
+            environment,
+            postgres_version,
+            region,
+            slug,
+          });
         } catch (error) {
           // The control plane rejects provisioning without an active plan as a
           // 400 whose message comes from ensureOrganizationCanProvision
