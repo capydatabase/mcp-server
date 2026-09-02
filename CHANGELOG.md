@@ -6,6 +6,11 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.6.3] - 2026-09-02
+
+### Changed
+- The `run_sql` tool's `read_only` option now comes from the published `@capydb/sdk` types instead of a temporary local type override; behavior is unchanged. ([3707ae2](https://github.com/capy-base/mcp-server/commit/3707ae2))
+
 ## [1.6.2] - 2026-09-02
 
 ### Miscellaneous Chores
@@ -141,7 +146,8 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
   SQL, logs and observability. All diagnostics go to stderr; production-overwrite restore is
   deliberately not exposed as a tool.
 
-[Unreleased]: https://github.com/capy-base/mcp-server/compare/v1.6.2...HEAD
+[Unreleased]: https://github.com/capy-base/mcp-server/compare/v1.6.3...HEAD
+[1.6.3]: https://github.com/capy-base/mcp-server/compare/v1.6.2...v1.6.3
 [1.6.2]: https://github.com/capy-base/mcp-server/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/capy-base/mcp-server/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/capy-base/mcp-server/compare/v1.4.1...v1.6.0
