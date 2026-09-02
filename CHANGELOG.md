@@ -6,16 +6,34 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-02
+
+### Added
+
+- `get_index_hygiene`: lists the indexes a project's database is paying for without using - those with no
+  recorded scans, and those whose columns are a leading subset of another index on the same table - each
+  with a ready-to-run `DROP INDEX CONCURRENTLY` statement. The counterpart to `get_index_advisor`, which
+  only ever proposes new indexes. Needs no extensions, so it works on any project. `UNIQUE`, primary-key,
+  exclusion and replica-identity indexes are never listed because they are correctness constraints rather
+  than access paths, and the tool reports `available: false` until a week of query statistics exists
+  rather than mistaking a weekly job's index for a dead one. Read-only; the tool description tells agents
+  not to drop anything without asking first.
+
+### Changed
+
+- `get_alerts` documents the new `temp_spill` advisory kind, which opens when the database sustains
+  writing temporary files - a sort or hash that does not fit in `work_mem`.
+
 ## [1.6.3] - 2026-09-02
 
 ### Changed
-- The `run_sql` tool's `read_only` option now comes from the published `@capydb/sdk` types instead of a temporary local type override; behavior is unchanged. ([3707ae2](https://github.com/capy-base/mcp-server/commit/3707ae2))
+- The `run_sql` tool's `read_only` option now comes from the published `@capydb/sdk` types instead of a temporary local type override; behavior is unchanged. ([3707ae2](https://github.com/capydatabase/mcp-server/commit/3707ae2))
 
 ## [1.6.2] - 2026-09-02
 
 ### Miscellaneous Chores
 
-- update dependencies and package versions ([493afd0](https://github.com/capy-base/mcp-server/commit/493afd0))
+- update dependencies and package versions ([493afd0](https://github.com/capydatabase/mcp-server/commit/493afd0))
 
 ## [1.6.1] - 2026-09-02
 
@@ -146,14 +164,14 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
   SQL, logs and observability. All diagnostics go to stderr; production-overwrite restore is
   deliberately not exposed as a tool.
 
-[Unreleased]: https://github.com/capy-base/mcp-server/compare/v1.6.3...HEAD
-[1.6.3]: https://github.com/capy-base/mcp-server/compare/v1.6.2...v1.6.3
-[1.6.2]: https://github.com/capy-base/mcp-server/compare/v1.6.1...v1.6.2
-[1.6.1]: https://github.com/capy-base/mcp-server/compare/v1.6.0...v1.6.1
-[1.6.0]: https://github.com/capy-base/mcp-server/compare/v1.4.1...v1.6.0
-[1.4.1]: https://github.com/capy-base/mcp-server/compare/v1.4.0...v1.4.1
-[1.4.0]: https://github.com/capy-base/mcp-server/compare/v1.3.0...v1.4.0
-[1.3.0]: https://github.com/capy-base/mcp-server/compare/v1.2.0...v1.3.0
-[1.2.0]: https://github.com/capy-base/mcp-server/compare/v1.1.0...v1.2.0
-[1.1.0]: https://github.com/capy-base/mcp-server/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/capy-base/mcp-server/releases/tag/v1.0.0
+[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v1.6.3...HEAD
+[1.6.3]: https://github.com/capydatabase/mcp-server/compare/v1.6.2...v1.6.3
+[1.6.2]: https://github.com/capydatabase/mcp-server/compare/v1.6.1...v1.6.2
+[1.6.1]: https://github.com/capydatabase/mcp-server/compare/v1.6.0...v1.6.1
+[1.6.0]: https://github.com/capydatabase/mcp-server/compare/v1.4.1...v1.6.0
+[1.4.1]: https://github.com/capydatabase/mcp-server/compare/v1.4.0...v1.4.1
+[1.4.0]: https://github.com/capydatabase/mcp-server/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/capydatabase/mcp-server/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/capydatabase/mcp-server/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/capydatabase/mcp-server/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/capydatabase/mcp-server/releases/tag/v1.0.0

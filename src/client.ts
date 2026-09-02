@@ -25,6 +25,7 @@ import type {
   Project,
   ProjectAlert,
   IndexAdvisorReport,
+  IndexHygieneReport,
   ProjectExport,
   ProjectExtension,
   ProjectLogs,
@@ -428,6 +429,22 @@ export class CapyDBClient {
       ...data.advisor,
       missing_extensions: data.advisor.missing_extensions ?? [],
       suggestions: data.advisor.suggestions ?? [],
+    };
+  }
+
+  /**
+   * Indexes the database is paying for without using: never scanned, or covered by a wider index.
+   * Read-only, and unlike getIndexAdvisor it needs no extension.
+   */
+  async getIndexHygiene(projectId: string): Promise<IndexHygieneReport> {
+    const data = await this.request<{ hygiene: IndexHygieneReport }>(
+      "GET",
+      `/v1/projects/${encodeURIComponent(projectId)}/advisor/index-hygiene`,
+    );
+    return {
+      ...data.hygiene,
+      unused_indexes: data.hygiene.unused_indexes ?? [],
+      redundant_indexes: data.hygiene.redundant_indexes ?? [],
     };
   }
 

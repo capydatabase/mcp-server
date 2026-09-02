@@ -469,6 +469,31 @@ export function registerTools(server: McpServer, client: CapyDBClient, auth: Aut
   );
 
   server.registerTool(
+    "get_index_hygiene",
+    {
+      title: "Find unused and redundant indexes",
+      description:
+        "List indexes the project's database is paying for without using: those with no recorded scans, " +
+        "and those whose columns are a leading subset of another index on the same table. " +
+        "The counterpart to get_index_advisor - that one only ever proposes new indexes, and a database " +
+        "that takes every suggestion and removes nothing accumulates write amplification and storage. " +
+        "Read-only, and unlike get_index_advisor it needs NO extensions, so it works on any project. " +
+        "UNIQUE, primary-key, exclusion and replica-identity indexes are never listed because they are " +
+        "correctness constraints rather than access paths. " +
+        "available is false until a week of query statistics has accumulated - Postgres does not record " +
+        "when an index was created, so over a shorter window an index used by a weekly job is " +
+        "indistinguishable from a dead one; report that honestly rather than guessing. " +
+        "DO NOT drop any index without asking the user first, and always use the drop_statement given " +
+        "(it is CONCURRENTLY; the plain form locks the table against writes for the whole drop).",
+      inputSchema: z.object({
+        project_id: z.string().describe("Project id."),
+      }),
+      annotations: { readOnlyHint: true },
+    },
+    async ({ project_id }) => run(auth, () => client.getIndexHygiene(project_id)),
+  );
+
+  server.registerTool(
     "enable_extension",
     {
       title: "Enable an extension",
@@ -975,7 +1000,7 @@ export function registerTools(server: McpServer, client: CapyDBClient, auth: Aut
       description:
         "List the project's OPEN alerts, newest first. " +
         "Covers threshold alerts on storage and connection usage against the plan limits, backup failure/staleness alerts, " +
-        "and warning-severity health advisories (cache_hit, blocked_queries, deadlocks, vacuum, long_transaction, subtransactions, oom_kill) derived from the periodic " +
+        "and warning-severity health advisories (cache_hit, blocked_queries, deadlocks, vacuum, long_transaction, subtransactions, oom_kill, temp_spill) derived from the periodic " +
         "metrics sweep. An alert is open while resolved_at is absent; it resolves on its own when the condition clears. " +
         "Set include_resolved to also see alerts resolved in the last 30 days - useful for asking whether a condition has " +
         "recurred, but a busy project accumulates hundreds of them.",

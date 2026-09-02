@@ -25,6 +25,7 @@ export type {
   ImportPreflightCheck,
   ImportPreflightResult,
   IndexAdvisorReport,
+  IndexHygieneReport,
   IndexSuggestion,
   Job,
   OrganizationUsage,
@@ -39,6 +40,7 @@ export type {
   ProjectLogEntry,
   ProjectLogs,
   ProjectObservability,
+  RedundantIndex,
   RegionsResponse,
   RestorePoint,
   SchemaColumn,
@@ -54,6 +56,7 @@ export type {
   SqlQueryRequest as SQLQueryRequest,
   SqlQueryResult as SQLQueryResult,
   TableRowsResult,
+  UnusedIndex,
 } from "@capydb/sdk";
 
 import type { ProjectConnectionInfo } from "@capydb/sdk";
