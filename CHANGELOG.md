@@ -6,6 +6,13 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `run_sql` takes `read_only`: the statement runs inside a server-side `READ ONLY` transaction
+  and every write (DML, DDL, `TRUNCATE`, `SELECT INTO`, sequence advancement) is refused by
+  Postgres itself - executor-proven, unlike pattern-matching the statement. The tool description
+  steers agents to set it whenever the statement is not meant to change anything.
+
 ## [1.6.0] - 2026-08-31
 
 ### Added
