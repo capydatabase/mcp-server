@@ -365,13 +365,7 @@ export class CapyDBClient {
    *    UPDATE or DELETE with no WHERE and any TRUNCATE unless a caller opts
    *    out, and an agent is precisely the caller that must not.
    */
-  // The `read_only` widening is temporary: the field is in the control plane's
-  // OpenAPI spec but not yet in the published @capydb/sdk types this package
-  // pins. Drop the intersection when the dependency moves past 1.9.0.
-  async runSql(
-    projectId: string,
-    body: SQLQueryRequest & { read_only?: boolean },
-  ): Promise<SQLQueryResult> {
+  async runSql(projectId: string, body: SQLQueryRequest): Promise<SQLQueryResult> {
     const data = await this.request<{ result: SQLQueryResult }>(
       "POST",
       `/v1/projects/${encodeURIComponent(projectId)}/sql`,
