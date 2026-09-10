@@ -6,6 +6,21 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Four K/V tools for CapyDB Knight/Valkyrie, the key-value and rate-limiting service:
+  `list_kv_stores`, `get_kv_store`, `get_kv_credentials` (all read-only) and `create_kv_store`.
+  `get_kv_store` returns 404 when a project has no store, which is the normal answer rather than a
+  failure. `get_kv_credentials` never returns the token - only its SHA-256 hash is stored - so it
+  reports `token_required` and a password-free RESP URL instead of something that would look like a
+  working credential. `create_kv_store` carries the plaintext token once and is marked
+  secret-bearing, the same way `get_connection_strings` is.
+
+  **`kv_flush`, `kv_rotate_token` and `kv_delete` are deliberately not exposed**, for the reason
+  production-overwrite restore is not: a K/V store has no backup and no restore path, so each of
+  those is a single irreversible step from an agent to unrecoverable customer data. They stay in the
+  dashboard and the CLI, behind a confirmation.
+
 ## [1.7.0] - 2026-09-02
 
 ### Added

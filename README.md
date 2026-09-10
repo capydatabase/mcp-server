@@ -121,6 +121,10 @@ For headless/CI, add `"env": { "CAPYDB_API_KEY": "capy_..." }` to the server ent
 | `acknowledge_alert` | Mark an alert as seen | idempotent; does not resolve the alert |
 | `get_job` | Poll an async job until `completed`/`failed` | read-only |
 | `list_jobs` | List a project's async jobs | read-only |
+| `list_kv_stores` | K/V stores across the organization | read-only |
+| `get_kv_store` | One project's K/V store (state, capacity, eviction) | read-only; 404 = no store yet |
+| `get_kv_credentials` | K/V REST + RESP endpoints | read-only; the token is never returned |
+| `create_kv_store` | Provision the project's K/V store | async job; **secret-bearing output** |
 
 `create_project` notes: the project's plan is derived from the organization's billing state and cannot
 be chosen per project. If the organization has no active plan, the tool fails with a link to
@@ -131,6 +135,10 @@ be chosen per project. If the organization has no active plan, the tool fails wi
 - **Production overwrite is not exposed.** The `restore` tool only targets preview databases (new or
   existing). Overwriting the production database is irreversible and requires explicit human confirmation
   plus the org admin role, so it stays in the dashboard and CLI.
+- **K/V flush, rotate-token and delete are not exposed.** A K/V store keeps only a periodic snapshot -
+  no backups, no point-in-time recovery - so each of those is one irreversible step away from
+  unrecoverable data. They stay in the dashboard and the CLI, behind a confirmation. `create_kv_store`
+  returns the plaintext token once, because that is the only response that carries it.
 - Destructive tools (`delete_preview_database`, `restore`) carry the MCP `destructiveHint` annotation so
   clients can require approval.
 - Connection-string tools are clearly marked secret-bearing; instruct your agent not to persist their

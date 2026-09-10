@@ -20,6 +20,8 @@ import type {
   GeneratedTypes,
   ImportPreflightResult,
   Job,
+  KVCredentials,
+  KVStore,
   OrganizationUsage,
   PreviewDatabase,
   Project,
@@ -572,6 +574,42 @@ export class CapyDBClient {
     await this.request<unknown>(
       "DELETE",
       `/v1/projects/${encodeURIComponent(projectId)}/restore-points/${encodeURIComponent(restorePointId)}`,
+    );
+  }
+
+  // ---- K/V stores ----------------------------------------------------------
+
+  async listKVStores(organizationId?: string): Promise<KVStore[]> {
+    const query =
+      organizationId === undefined
+        ? ""
+        : `?organization_id=${encodeURIComponent(organizationId)}`;
+    const data = await this.request<{ kv_stores: KVStore[] | null }>("GET", `/v1/kv${query}`);
+    return data.kv_stores ?? [];
+  }
+
+  async getKVStore(projectId: string): Promise<KVStore> {
+    return await this.request<KVStore>(
+      "GET",
+      `/v1/projects/${encodeURIComponent(projectId)}/kv`,
+    );
+  }
+
+  /**
+   * Provisions the store. The response carries the plaintext token exactly
+   * once; only its SHA-256 hash is stored, so it cannot be fetched again.
+   */
+  async createKVStore(projectId: string): Promise<{ kv_store: KVStore; job: Job }> {
+    return await this.request("POST", `/v1/projects/${encodeURIComponent(projectId)}/kv`, {
+      body: {},
+    });
+  }
+
+  /** Endpoints without the secret: `token_required` says the token is not readable. */
+  async getKVCredentials(projectId: string): Promise<KVCredentials> {
+    return await this.request<KVCredentials>(
+      "GET",
+      `/v1/projects/${encodeURIComponent(projectId)}/kv/credentials`,
     );
   }
 }

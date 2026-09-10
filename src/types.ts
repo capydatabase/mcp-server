@@ -28,6 +28,8 @@ export type {
   IndexHygieneReport,
   IndexSuggestion,
   Job,
+  KvCredentials as KVCredentials,
+  KvStore as KVStore,
   OrganizationUsage,
   PreviewConnectionInfo,
   PreviewDatabase,

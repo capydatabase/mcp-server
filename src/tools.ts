@@ -7,6 +7,10 @@
  *   `destructiveHint: true`.
  * - Production overwrite restores are intentionally NOT exposed: the `restore`
  *   tool only targets preview databases.
+ * - K/V flush, rotate-token and delete are intentionally NOT exposed either. A
+ *   K/V store has no backup and no restore path, so each of those is one
+ *   irreversible step from an agent to unrecoverable customer data; they live in
+ *   the dashboard and the CLI, behind a confirmation.
  * - Results are returned as pretty-printed JSON text.
  */
 
@@ -216,6 +220,92 @@ export function registerTools(server: McpServer, client: CapyDBClient, auth: Aut
       annotations: { readOnlyHint: true },
     },
     async ({ project_id }) => run(auth, () => client.getProjectConnections(project_id)),
+  );
+
+  // ---- K/V stores ----------------------------------------------------------
+
+  server.registerTool(
+    "list_kv_stores",
+    {
+      title: "List K/V stores",
+      description:
+        "List every K/V store in the organization (CapyDB Knight/Valkyrie: the key-value and rate-limiting service). " +
+        "A store belongs to a project and a project has at most one, so this is the way to see which projects have one. " +
+        "The organization is resolved from the API key's projects; pass organization_id only when the key spans several.",
+      inputSchema: z.object({
+        organization_id: z
+          .string()
+          .optional()
+          .describe(
+            "Organization id. Omit to derive it from the projects the API key can see.",
+          ),
+      }),
+      annotations: { readOnlyHint: true },
+    },
+    async ({ organization_id }) =>
+      run(auth, async () => {
+        let orgId = organization_id;
+        if (!orgId) {
+          const [project] = await client.listProjects();
+          if (!project) {
+            throw new Error(
+              "No projects visible to this API key, so the organization cannot be derived - pass organization_id explicitly.",
+            );
+          }
+          orgId = project.organization_id;
+        }
+        return client.listKVStores(orgId);
+      }),
+  );
+
+  server.registerTool(
+    "get_kv_store",
+    {
+      title: "Get a project's K/V store",
+      description:
+        "Get the project's K/V store: state, capacity, eviction policy and persistence. " +
+        "Returns HTTP 404 when the project has no store - that is the normal answer, not a failure, and means one can be created. " +
+        "maxmemory_mb is the storable capacity; mem_max_mb is the cell's memory ceiling and is larger so a snapshot fork has headroom, so it is NOT usable capacity.",
+      inputSchema: z.object({
+        project_id: z.string().describe("Project id."),
+      }),
+      annotations: { readOnlyHint: true },
+    },
+    async ({ project_id }) => run(auth, () => client.getKVStore(project_id)),
+  );
+
+  server.registerTool(
+    "get_kv_credentials",
+    {
+      title: "Get K/V connection details",
+      description:
+        "Get the project's K/V endpoints: the Upstash-compatible REST URL and the RESP URL. " +
+        "The token is NOT returned and cannot be: the control plane stores only its SHA-256 hash, which is why token_required is true and the RESP URL carries no password. " +
+        "A lost token can only be replaced, by rotating in the dashboard or with `capydb kv rotate-token` - this server does not expose rotation. " +
+        "Set the returned URL as CAPYDB_KV_REST_URL; @upstash/redis and @upstash/ratelimit work unmodified against it.",
+      inputSchema: z.object({
+        project_id: z.string().describe("Project id."),
+      }),
+      annotations: { readOnlyHint: true },
+    },
+    async ({ project_id }) => run(auth, () => client.getKVCredentials(project_id)),
+  );
+
+  server.registerTool(
+    "create_kv_store",
+    {
+      title: "Create a K/V store",
+      description:
+        "Provision the project's K/V store for key-value work and rate limiting. Provisioning is asynchronous: poll the returned job with get_job. " +
+        "A project may have only one store; creating a second returns a conflict. The store is sized from the organization's plan. " +
+        "SECRET-BEARING OUTPUT: the response carries the plaintext token exactly once, because only its hash is stored - surface it to the user immediately and never log it, write it to a file, or include it in a commit message or chat summary. " +
+        "A store keeps only a periodic snapshot: no backups, no point-in-time recovery, and keys with a TTL are evicted once it is full. Do not use it as the system of record for anything that cannot be reconstructed.",
+      inputSchema: z.object({
+        project_id: z.string().describe("Project id."),
+      }),
+      annotations: { idempotentHint: false },
+    },
+    async ({ project_id }) => run(auth, () => client.createKVStore(project_id)),
   );
 
   // ---- Preview databases ---------------------------------------------------
