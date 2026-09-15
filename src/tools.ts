@@ -282,7 +282,8 @@ export function registerTools(server: McpServer, client: CapyDBClient, auth: Aut
         "Get the project's K/V endpoints: the Upstash-compatible REST URL and the RESP URL. " +
         "The token is NOT returned and cannot be: the control plane stores only its SHA-256 hash, which is why token_required is true and the RESP URL carries no password. " +
         "A lost token can only be replaced, by rotating in the dashboard or with `capydb kv rotate-token` - this server does not expose rotation. " +
-        "Set the returned URL as CAPYDB_KV_REST_URL; @upstash/redis and @upstash/ratelimit work unmodified against it.",
+        "Set the returned URL as CAPYKV_REST_URL; @upstash/redis and @upstash/ratelimit work unmodified against it. " +
+        "The RESP URL is published as CAPYKV_REDIS_URL. The RESP endpoint routes by TLS server name (SNI): ioredis needs `tls: { servername }` and redis-cli needs `--sni`, or the connection is refused.",
       inputSchema: z.object({
         project_id: z.string().describe("Project id."),
       }),

@@ -6,6 +6,15 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `get_kv_credentials` names `CAPYKV_REDIS_URL` for the RESP URL and tells the agent the RESP
+  endpoint routes by TLS server name (ioredis `tls.servername`, redis-cli `--sni`), so it does
+  not hand a customer a connection that is refused.
+- Built against `@capydb/sdk` 1.16.1, so `Project.always_on` and the `kv_unreachable` alert kind are
+  typed; `list_alerts` names the reachability kinds (`unreachable`, `kv_unreachable`,
+  `pooler_handshake`) it can return.
+
 ### Added
 
 - Four K/V tools for CapyDB Knight/Valkyrie, the key-value and rate-limiting service:

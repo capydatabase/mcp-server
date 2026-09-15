@@ -1,6 +1,6 @@
 {
   "name": "@capydb/mcp",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Official CapyDB MCP server - managed Postgres projects, preview databases, backups, restores, and SQL for AI agents.",
   "keywords": [
     "capydb",
