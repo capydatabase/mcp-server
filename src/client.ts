@@ -16,6 +16,9 @@ import type {
   CreateRestoreRequest,
   DatabaseSchema,
   DatabaseTable,
+  EphemeralDatabaseCreateRequest,
+  EphemeralDatabaseCreated,
+  EphemeralDatabaseDetails,
   ExportDownload,
   GeneratedTypes,
   ImportPreflightResult,
@@ -91,6 +94,13 @@ export interface CapyDBClientOptions {
 interface RequestOptions {
   query?: Record<string, string | number | undefined>;
   body?: unknown;
+  /**
+   * Send no `Authorization` header and never touch the API key. Only the
+   * ephemeral-database create and read are anonymous: they must work before
+   * (and without) a device login, which `getApiKey()` would otherwise demand.
+   */
+  anonymous?: boolean;
+  headers?: Record<string, string>;
 }
 
 export class CapyDBClient {
@@ -113,9 +123,10 @@ export class CapyDBClient {
       response = await fetch(url, {
         method,
         headers: {
-          authorization: `Bearer ${this.getApiKey()}`,
+          ...(options.anonymous === true ? {} : { authorization: `Bearer ${this.getApiKey()}` }),
           accept: "application/json",
           ...(options.body !== undefined ? { "content-type": "application/json" } : {}),
+          ...options.headers,
         },
         body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
       });
@@ -179,6 +190,34 @@ export class CapyDBClient {
       `/v1/projects/${encodeURIComponent(projectId)}/connections`,
     );
     return data.connections;
+  }
+
+  // ---- Ephemeral databases --------------------------------------------------
+
+  async createEphemeralDatabase(
+    body: EphemeralDatabaseCreateRequest,
+  ): Promise<EphemeralDatabaseCreated> {
+    return await this.request("POST", "/v1/ephemeral-databases", { body, anonymous: true });
+  }
+
+  /** The claim token travels in a header so it never lands in access logs. */
+  async getEphemeralDatabase(
+    projectId: string,
+    claimToken: string,
+  ): Promise<EphemeralDatabaseDetails> {
+    return await this.request("GET", `/v1/ephemeral-databases/${encodeURIComponent(projectId)}`, {
+      anonymous: true,
+      headers: { "x-capydb-claim-token": claimToken },
+    });
+  }
+
+  async claimEphemeralDatabase(projectId: string, claimToken: string): Promise<Project> {
+    const data = await this.request<{ project: Project }>(
+      "POST",
+      `/v1/ephemeral-databases/${encodeURIComponent(projectId)}/claim`,
+      { body: { claim_token: claimToken } },
+    );
+    return data.project;
   }
 
   // ---- Preview databases ---------------------------------------------------

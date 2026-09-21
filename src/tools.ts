@@ -56,6 +56,19 @@ async function run(auth: AuthManager, handler: () => Promise<unknown>): Promise<
   }
 }
 
+/**
+ * Runs a handler with NO authentication gate. Only the ephemeral-database create
+ * and read use it: their whole point is to work before the user has an account,
+ * so triggering the device login here would defeat them.
+ */
+async function runAnonymous(handler: () => Promise<unknown>): Promise<CallToolResult> {
+  try {
+    return jsonResult(await handler());
+  } catch (error) {
+    return errorResult(error);
+  }
+}
+
 export function registerTools(server: McpServer, client: CapyDBClient, auth: AuthManager): void {
   // ---- Regions ---------------------------------------------------------------
 
@@ -307,6 +320,71 @@ export function registerTools(server: McpServer, client: CapyDBClient, auth: Aut
       annotations: { idempotentHint: false },
     },
     async ({ project_id }) => run(auth, () => client.createKVStore(project_id)),
+  );
+
+  // ---- Ephemeral databases --------------------------------------------------
+
+  server.registerTool(
+    "create_ephemeral_database",
+    {
+      title: "Create an ephemeral database (no account needed)",
+      description:
+        "Create a throwaway Postgres database WITHOUT an account, login or API key - use it when the user wants a database right now to run or test an app and has not signed up. " +
+        "It is a real database, destroyed with its data 72 hours after creation unless it is claimed with claim_ephemeral_database. Do not use it for anything the user needs to keep without claiming it, and prefer create_project when the user already has an organization. " +
+        "Provisioning is asynchronous and usually takes seconds: poll get_ephemeral_database with the returned project_id and claim_token until state is \"ready\" to obtain the connection strings. " +
+        "SECRET-BEARING OUTPUT: claim_token (and claim_url, which embeds it) is the database's only credential and is returned exactly once - only its hash is stored, so it cannot be recovered. Keep it for the follow-up calls and give claim_url to the user so they can keep the database; never write either to a committed file, a commit message or a chat summary. " +
+        "The number of unclaimed ephemeral databases is capped platform-wide: a 503 means every slot is in use, so tell the user and retry later rather than looping.",
+      inputSchema: z.object({
+        name: z.string().max(64).optional().describe("Display name. Defaults to a generated name."),
+        region: z
+          .string()
+          .optional()
+          .describe("Region slug from list_regions. Omit to let CapyDB pick one with capacity."),
+        postgres_version: z
+          .enum(["16", "17", "18"])
+          .optional()
+          .describe("Postgres major version. Omit for the platform default."),
+      }),
+      annotations: { idempotentHint: false },
+    },
+    async ({ name, region, postgres_version }) =>
+      runAnonymous(() => client.createEphemeralDatabase({ name, region, postgres_version })),
+  );
+
+  server.registerTool(
+    "get_ephemeral_database",
+    {
+      title: "Get an ephemeral database",
+      description:
+        "Read an unclaimed ephemeral database using its claim token (no account needed): its state, when it expires and, once state is \"ready\", its connection strings. Poll this after create_ephemeral_database; state \"failed\" means create another one. " +
+        "A not-found answer means the database expired or has already been claimed - the claim token stops working at that moment by design; a claimed database is read with get_project_connections instead. " +
+        "SECRET-BEARING OUTPUT: the connection strings embed the database password. Write them to the app's git-ignored env file; never print them into chat, a committed file or a commit message.",
+      inputSchema: z.object({
+        project_id: z.string().describe("project_id returned by create_ephemeral_database."),
+        claim_token: z.string().describe("claim_token returned by create_ephemeral_database."),
+      }),
+      annotations: { readOnlyHint: true },
+    },
+    async ({ project_id, claim_token }) =>
+      runAnonymous(() => client.getEphemeralDatabase(project_id, claim_token)),
+  );
+
+  server.registerTool(
+    "claim_ephemeral_database",
+    {
+      title: "Claim an ephemeral database",
+      description:
+        "Keep an ephemeral database: attach it to the authenticated user's organization, where it becomes an ordinary project on their plan. It stops expiring, gains the default nightly backup schedule and counts against the plan's project limit. The data and the connection strings do not change, so the app keeps working untouched. " +
+        "Requires a CapyDB account with an active subscription (this call starts the device login if there is none) - only claim when the user has said they want to keep the database. " +
+        "Idempotent for the organization that made the claim; a conflict means it was claimed by someone else, has expired, or is still being created.",
+      inputSchema: z.object({
+        project_id: z.string().describe("project_id returned by create_ephemeral_database."),
+        claim_token: z.string().describe("claim_token returned by create_ephemeral_database."),
+      }),
+      annotations: { idempotentHint: true },
+    },
+    async ({ project_id, claim_token }) =>
+      run(auth, () => client.claimEphemeralDatabase(project_id, claim_token)),
   );
 
   // ---- Preview databases ---------------------------------------------------

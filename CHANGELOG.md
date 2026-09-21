@@ -6,6 +6,23 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-09-22
+
+### Added
+
+- **`create_ephemeral_database`, `get_ephemeral_database`, `claim_ephemeral_database`** - a throwaway
+  Postgres database an agent can hand the user before they have an account. The first two are the
+  server's only anonymous tools: they bypass the authentication gate and send no `Authorization`
+  header, so asking for a scratch database never starts the device login. The database is destroyed
+  with its data after 72 hours unless `claim_ephemeral_database` (which does authenticate) attaches
+  it to the user's organization as an ordinary project - data and connection strings unchanged. The
+  create's description marks its output secret-bearing: the claim token is returned once and cannot
+  be recovered. 48 tools.
+
+## [1.8.0] - 2026-09-16
+
+Tagged but never published to npm; its changes reach npm with 1.9.0.
+
 ### Changed
 
 - `get_kv_credentials` names `CAPYKV_REDIS_URL` for the RESP URL and tells the agent the RESP

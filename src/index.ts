@@ -66,6 +66,7 @@ async function main(): Promise<void> {
             "CapyDB is managed Postgres. Cross-tool conventions:",
             "- Mutating tools (create_preview_database, create_backup, restore, import_database, extension changes) return a job: poll get_job until its state is completed or failed.",
             "- If a tool result carries a device-login approval URL, relay that URL to the user, wait for their approval, then retry the tool.",
+            "- create_ephemeral_database and get_ephemeral_database need no account and never trigger the device login: use them when the user wants a throwaway database right now. It is destroyed after 72 hours unless claim_ephemeral_database attaches it to their organization.",
             "- Before destructive SQL, an import, or a restore into an existing preview, call create_restore_point first so the change is reversible.",
             "- Connection-string results embed live database credentials: never log them or write them into files, commits, or summaries.",
           ].join("\n"),

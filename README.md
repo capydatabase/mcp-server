@@ -91,6 +91,9 @@ For headless/CI, add `"env": { "CAPYDB_API_KEY": "capy_..." }` to the server ent
 | `list_projects` | List your Postgres projects | read-only |
 | `get_project` | Get one project (state, plan, limits) | read-only |
 | `get_connection_strings` | Pooled + direct URLs for a project | **secret-bearing output** |
+| `create_ephemeral_database` | Create a throwaway database with **no account or login**; destroyed after 72h unless claimed | anonymous, **secret-bearing output** (claim token, shown once) |
+| `get_ephemeral_database` | State, expiry and (once ready) connection strings of an unclaimed ephemeral database, by claim token | anonymous, read-only, **secret-bearing output** |
+| `claim_ephemeral_database` | Keep an ephemeral database: attach it to your organization as a normal project | idempotent; needs an account with an active subscription |
 | `create_preview_database` | Create a disposable preview/branch DB (`empty` or `clone`) | async job |
 | `list_preview_databases` | List previews with state and TTL | read-only |
 | `delete_preview_database` | Delete a preview and its role | **destructive**, async job |
