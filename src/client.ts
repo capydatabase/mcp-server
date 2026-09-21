@@ -620,18 +620,13 @@ export class CapyDBClient {
 
   async listKVStores(organizationId?: string): Promise<KVStore[]> {
     const query =
-      organizationId === undefined
-        ? ""
-        : `?organization_id=${encodeURIComponent(organizationId)}`;
+      organizationId === undefined ? "" : `?organization_id=${encodeURIComponent(organizationId)}`;
     const data = await this.request<{ kv_stores: KVStore[] | null }>("GET", `/v1/kv${query}`);
     return data.kv_stores ?? [];
   }
 
   async getKVStore(projectId: string): Promise<KVStore> {
-    return await this.request<KVStore>(
-      "GET",
-      `/v1/projects/${encodeURIComponent(projectId)}/kv`,
-    );
+    return await this.request<KVStore>("GET", `/v1/projects/${encodeURIComponent(projectId)}/kv`);
   }
 
   /**

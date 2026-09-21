@@ -249,9 +249,7 @@ export function registerTools(server: McpServer, client: CapyDBClient, auth: Aut
         organization_id: z
           .string()
           .optional()
-          .describe(
-            "Organization id. Omit to derive it from the projects the API key can see.",
-          ),
+          .describe("Organization id. Omit to derive it from the projects the API key can see."),
       }),
       annotations: { readOnlyHint: true },
     },
@@ -331,7 +329,7 @@ export function registerTools(server: McpServer, client: CapyDBClient, auth: Aut
       description:
         "Create a throwaway Postgres database WITHOUT an account, login or API key - use it when the user wants a database right now to run or test an app and has not signed up. " +
         "It is a real database, destroyed with its data 72 hours after creation unless it is claimed with claim_ephemeral_database. Do not use it for anything the user needs to keep without claiming it, and prefer create_project when the user already has an organization. " +
-        "Provisioning is asynchronous and usually takes seconds: poll get_ephemeral_database with the returned project_id and claim_token until state is \"ready\" to obtain the connection strings. " +
+        'Provisioning is asynchronous and usually takes seconds: poll get_ephemeral_database with the returned project_id and claim_token until state is "ready" to obtain the connection strings. ' +
         "SECRET-BEARING OUTPUT: claim_token (and claim_url, which embeds it) is the database's only credential and is returned exactly once - only its hash is stored, so it cannot be recovered. Keep it for the follow-up calls and give claim_url to the user so they can keep the database; never write either to a committed file, a commit message or a chat summary. " +
         "The number of unclaimed ephemeral databases is capped platform-wide: a 503 means every slot is in use, so tell the user and retry later rather than looping.",
       inputSchema: z.object({
@@ -356,7 +354,7 @@ export function registerTools(server: McpServer, client: CapyDBClient, auth: Aut
     {
       title: "Get an ephemeral database",
       description:
-        "Read an unclaimed ephemeral database using its claim token (no account needed): its state, when it expires and, once state is \"ready\", its connection strings. Poll this after create_ephemeral_database; state \"failed\" means create another one. " +
+        'Read an unclaimed ephemeral database using its claim token (no account needed): its state, when it expires and, once state is "ready", its connection strings. Poll this after create_ephemeral_database; state "failed" means create another one. ' +
         "A not-found answer means the database expired or has already been claimed - the claim token stops working at that moment by design; a claimed database is read with get_project_connections instead. " +
         "SECRET-BEARING OUTPUT: the connection strings embed the database password. Write them to the app's git-ignored env file; never print them into chat, a committed file or a commit message.",
       inputSchema: z.object({
