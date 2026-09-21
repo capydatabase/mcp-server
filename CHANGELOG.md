@@ -6,6 +6,16 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-09-21
+
+### Added
+
+- `create_ephemeral_database`, `get_ephemeral_database` and `claim_ephemeral_database` give an agent a throwaway Postgres database to hand over before the user has an account. Creating and reading one needs no account and never starts the device login. The database and its data are destroyed after 72 hours unless `claim_ephemeral_database`, which does authenticate, attaches it to the user's organization as an ordinary project; data and connection strings are unchanged by the claim. The claim token is returned once at creation and cannot be recovered. The server now exposes 48 tools. ([d0a6afb](https://github.com/capydatabase/mcp-server/commit/d0a6afb))
+### Changed
+
+- The `get_kv_credentials` description now names `CAPYKV_REST_URL` (previously `CAPYDB_KV_REST_URL`) as the variable for the REST URL and `CAPYKV_REDIS_URL` for the RESP URL. It also tells the agent that the RESP endpoint routes by TLS server name: ioredis needs `tls: { servername }` and redis-cli needs `--sni`, otherwise the connection is refused. ([992ba49](https://github.com/capydatabase/mcp-server/commit/992ba49))
+- The `list_alerts` description now names the reachability alert kinds it can return: `unreachable` (the database does not answer probe connections), `kv_unreachable` (the project's K/V store does not answer) and `pooler_handshake` (clients are failing the pooled-connection handshake). ([6e5c4d1](https://github.com/capydatabase/mcp-server/commit/6e5c4d1))
+
 ## [1.10.0] - 2026-09-21
 
 ### Added
@@ -218,7 +228,8 @@ Tagged but never published to npm; its changes reach npm with 1.9.0.
   SQL, logs and observability. All diagnostics go to stderr; production-overwrite restore is
   deliberately not exposed as a tool.
 
-[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v1.11.0...HEAD
+[1.11.0]: https://github.com/capydatabase/mcp-server/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/capydatabase/mcp-server/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/capydatabase/mcp-server/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/capydatabase/mcp-server/compare/v1.7.0...v1.8.0
