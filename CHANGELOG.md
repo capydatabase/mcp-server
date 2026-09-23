@@ -12,6 +12,8 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ### Changed
 
+- `packageManager` is `pnpm@12.5.1` (was `pnpm@11.27.1`), matching the other CapyDB JS repos; the
+  lockfile records the same pnpm version.
 - `@capydb/sdk` moved from `dependencies` to `devDependencies`. The server only imports its types
   (the bundle never references it), so `npx @capydb/mcp` no longer downloads the SDK.
 
