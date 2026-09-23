@@ -10,6 +10,11 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 - `destroy_ephemeral_database` ends an unclaimed ephemeral database before its 72 hours run out, using only its claim token: no account and no device login. The database and its data are deleted within seconds and its slot on the platform-wide cap of unclaimed ephemeral databases is freed, so an agent or CI run can hand the slot back when it is done. It is irreversible, idempotent while the database is being destroyed, and answers not-found once the database has been claimed. The `create_ephemeral_database` and `get_ephemeral_database` descriptions and the server instructions now point agents at it. The server now exposes 49 tools.
 
+### Changed
+
+- `@capydb/sdk` moved from `dependencies` to `devDependencies`. The server only imports its types
+  (the bundle never references it), so `npx @capydb/mcp` no longer downloads the SDK.
+
 ### Fixed
 
 - `get_index_hygiene`'s description pointed agents at `get_index_advisor`, which does not exist;

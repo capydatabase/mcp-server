@@ -34,11 +34,11 @@
     "prepare": "if git rev-parse --git-dir >/dev/null 2>&1; then lefthook install; else echo 'no git repository - skipping lefthook install'; fi"
   },
   "dependencies": {
-    "@capydb/sdk": "^1.17.0",
     "@modelcontextprotocol/server": "^2.0.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@capydb/sdk": "^1.17.0",
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
     "@types/node": "^26.6.2",
