@@ -13,7 +13,7 @@
   "homepage": "https://capydb.dev",
   "repository": {
     "type": "git",
-    "url": "https://github.com/capydatabase/capydb-mcp"
+    "url": "git+https://github.com/capydatabase/mcp-server.git"
   },
   "license": "MIT",
   "type": "module",

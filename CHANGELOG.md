@@ -19,6 +19,7 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ### Fixed
 
+- The npm `repository` link pointed at a repository that does not exist; it now points at this one.
 - `get_index_hygiene`'s description pointed agents at `get_index_advisor`, which does not exist;
   it now names `suggest_indexes`.
 - README: the tool table now lists every tool the server registers (`get_usage`, `export_database`, `list_exports`, `get_export_download`, `suggest_indexes`, `get_index_hygiene` and `destroy_ephemeral_database` were missing), the safety model names all seven tools that carry `destructiveHint` instead of two, and it describes the overwrite-restore gate as the control plane enforces it: refused on production projects, and on a non-production one an org-wide key or org admin plus a single-use approval token.
