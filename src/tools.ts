@@ -57,8 +57,8 @@ async function run(auth: AuthManager, handler: () => Promise<unknown>): Promise<
 }
 
 /**
- * Runs a handler with NO authentication gate. Only the ephemeral-database create
- * and read use it: their whole point is to work before the user has an account,
+ * Runs a handler with NO authentication gate. Only the ephemeral-database create,
+ * read and destroy use it: their whole point is to work before the user has an account,
  * so triggering the device login here would defeat them.
  */
 async function runAnonymous(handler: () => Promise<unknown>): Promise<CallToolResult> {
@@ -328,7 +328,7 @@ export function registerTools(server: McpServer, client: CapyDBClient, auth: Aut
       title: "Create an ephemeral database (no account needed)",
       description:
         "Create a throwaway Postgres database WITHOUT an account, login or API key - use it when the user wants a database right now to run or test an app and has not signed up. " +
-        "It is a real database, destroyed with its data 72 hours after creation unless it is claimed with claim_ephemeral_database. Do not use it for anything the user needs to keep without claiming it, and prefer create_project when the user already has an organization. " +
+        "It is a real database, destroyed with its data 72 hours after creation unless it is claimed with claim_ephemeral_database. When the user is done with it and does not want to keep it, call destroy_ephemeral_database to free its slot instead of waiting out the 72 hours. Do not use it for anything the user needs to keep without claiming it, and prefer create_project when the user already has an organization. " +
         'Provisioning is asynchronous and usually takes seconds: poll get_ephemeral_database with the returned project_id and claim_token until state is "ready" to obtain the connection strings. ' +
         "SECRET-BEARING OUTPUT: claim_token (and claim_url, which embeds it) is the database's only credential and is returned exactly once - only its hash is stored, so it cannot be recovered. Keep it for the follow-up calls and give claim_url to the user so they can keep the database; never write either to a committed file, a commit message or a chat summary. " +
         "The number of unclaimed ephemeral databases is capped platform-wide: a 503 means every slot is in use, so tell the user and retry later rather than looping.",
@@ -355,7 +355,8 @@ export function registerTools(server: McpServer, client: CapyDBClient, auth: Aut
       title: "Get an ephemeral database",
       description:
         'Read an unclaimed ephemeral database using its claim token (no account needed): its state, when it expires and, once state is "ready", its connection strings. Poll this after create_ephemeral_database; state "failed" means create another one. ' +
-        "A not-found answer means the database expired or has already been claimed - the claim token stops working at that moment by design; a claimed database is read with get_project_connections instead. " +
+        "A not-found answer means the database expired, was destroyed or has already been claimed - the claim token stops working at that moment by design; a claimed database is read with get_project_connections instead. " +
+        "It otherwise lives until expires_at; destroy it early with destroy_ephemeral_database once the user no longer needs it. " +
         "SECRET-BEARING OUTPUT: the connection strings embed the database password. Write them to the app's git-ignored env file; never print them into chat, a committed file or a commit message.",
       inputSchema: z.object({
         project_id: z.string().describe("project_id returned by create_ephemeral_database."),
@@ -365,6 +366,27 @@ export function registerTools(server: McpServer, client: CapyDBClient, auth: Aut
     },
     async ({ project_id, claim_token }) =>
       runAnonymous(() => client.getEphemeralDatabase(project_id, claim_token)),
+  );
+
+  server.registerTool(
+    "destroy_ephemeral_database",
+    {
+      title: "Destroy an ephemeral database (no account needed)",
+      description:
+        "Destroy an unclaimed ephemeral database now instead of waiting for its 72-hour expiry, using its claim token (no account needed). Call it when the user is finished with a throwaway database and does not want to keep it. " +
+        "The database and all its data are deleted within seconds and its slot on the platform-wide cap of unclaimed ephemeral databases is freed. This is IRREVERSIBLE: there is no backup and no restore - only destroy when the user does not need the data. " +
+        "Idempotent: repeating the call while the database is being destroyed succeeds again. A not-found answer means it is already gone or has been claimed - it does not work after claim_ephemeral_database, because a claimed database is an ordinary project the claim token no longer controls.",
+      inputSchema: z.object({
+        project_id: z.string().describe("project_id returned by create_ephemeral_database."),
+        claim_token: z.string().describe("claim_token returned by create_ephemeral_database."),
+      }),
+      annotations: { destructiveHint: true, idempotentHint: true },
+    },
+    async ({ project_id, claim_token }) =>
+      runAnonymous(async () => {
+        await client.destroyEphemeralDatabase(project_id, claim_token);
+        return { destroyed: project_id };
+      }),
   );
 
   server.registerTool(
@@ -642,9 +664,9 @@ export function registerTools(server: McpServer, client: CapyDBClient, auth: Aut
       description:
         "List indexes the project's database is paying for without using: those with no recorded scans, " +
         "and those whose columns are a leading subset of another index on the same table. " +
-        "The counterpart to get_index_advisor - that one only ever proposes new indexes, and a database " +
+        "The counterpart to suggest_indexes - that one only ever proposes new indexes, and a database " +
         "that takes every suggestion and removes nothing accumulates write amplification and storage. " +
-        "Read-only, and unlike get_index_advisor it needs NO extensions, so it works on any project. " +
+        "Read-only, and unlike suggest_indexes it needs NO extensions, so it works on any project. " +
         "UNIQUE, primary-key, exclusion and replica-identity indexes are never listed because they are " +
         "correctness constraints rather than access paths. " +
         "available is false until a week of query statistics has accumulated - Postgres does not record " +

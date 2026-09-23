@@ -87,12 +87,14 @@ For headless/CI, add `"env": { "CAPYDB_API_KEY": "capy_..." }` to the server ent
 | Tool | What it does | Notes |
 | --- | --- | --- |
 | `list_regions` | List regions projects can be created in | read-only |
+| `get_usage` | Organization storage, connection and database counts against plan limits, per project | read-only |
 | `create_project` | Create a Postgres project and wait for provisioning | async; waits up to 5 min |
 | `list_projects` | List your Postgres projects | read-only |
 | `get_project` | Get one project (state, plan, limits) | read-only |
 | `get_connection_strings` | Pooled + direct URLs for a project | **secret-bearing output** |
 | `create_ephemeral_database` | Create a throwaway database with **no account or login**; destroyed after 72h unless claimed | anonymous, **secret-bearing output** (claim token, shown once) |
 | `get_ephemeral_database` | State, expiry and (once ready) connection strings of an unclaimed ephemeral database, by claim token | anonymous, read-only, **secret-bearing output** |
+| `destroy_ephemeral_database` | Destroy an unclaimed ephemeral database early with its claim token; frees its slot | anonymous, **destructive**, idempotent |
 | `claim_ephemeral_database` | Keep an ephemeral database: attach it to your organization as a normal project | idempotent; needs an account with an active subscription |
 | `create_preview_database` | Create a disposable preview/branch DB (`empty` or `clone`) | async job |
 | `list_preview_databases` | List previews with state and TTL | read-only |
@@ -101,10 +103,15 @@ For headless/CI, add `"env": { "CAPYDB_API_KEY": "capy_..." }` to the server ent
 | `extend_preview_ttl` | Extend a preview's TTL | mutates TTL only |
 | `get_preview_connection_strings` | Pooled + direct URLs for a preview | **secret-bearing output** |
 | `create_backup` | On-demand backup of the project DB | async job |
+| `export_database` | Logical export (`pg_dump` custom-format archive) of the project DB; expires after 7 days | async job |
+| `list_exports` | List a project's exports, newest first | read-only |
+| `get_export_download` | Short-lived (15 minute) download URL for a completed export | read-only |
 | `list_extensions` | List available Postgres extensions with enablement + update state | read-only |
 | `enable_extension` | Enable an extension (`CREATE EXTENSION IF NOT EXISTS`) | async job; **restarts the database** for `requires_restart` extensions (e.g. `pg_cron`) |
 | `disable_extension` | Disable an extension (`DROP EXTENSION`, no CASCADE) | **destructive**, async job; **restarts the database** for `requires_restart` extensions |
 | `update_extension` | Update an enabled extension to the platform-provided version | async job |
+| `suggest_indexes` | Index candidates from the predicates queries actually ran, costed as hypothetical indexes | read-only; needs `pg_qualstats` (+ `hypopg` for estimates) |
+| `get_index_hygiene` | Unused and redundant indexes, each with a `DROP INDEX CONCURRENTLY` statement | read-only; no extensions needed |
 | `major_upgrade_preflight` | Check whether the DB can move to a PostgreSQL major, without changing anything | read-only, async job |
 | `list_backups` | List backups incl. verification state | read-only |
 | `restore` | Restore a backup / restore point / PITR timestamp **into a preview** | **destructive** to the target preview; cannot overwrite production |
@@ -135,15 +142,17 @@ be chosen per project. If the organization has no active plan, the tool fails wi
 
 ### Safety model
 
-- **Production overwrite is not exposed.** The `restore` tool only targets preview databases (new or
-  existing). Overwriting the production database is irreversible and requires explicit human confirmation
-  plus the org admin role, so it stays in the dashboard and CLI.
+- **Overwrite restore is not exposed.** The `restore` tool only targets preview databases (new or
+  existing). Overwriting the project database is irreversible: the control plane refuses it on
+  production projects, and on a non-production project it needs an org-wide key or the org admin role
+  plus a single-use approval token. It stays in the dashboard, the CLI and the API.
 - **K/V flush, rotate-token and delete are not exposed.** A K/V store keeps only a periodic snapshot -
   no backups, no point-in-time recovery - so each of those is one irreversible step away from
   unrecoverable data. They stay in the dashboard and the CLI, behind a confirmation. `create_kv_store`
   returns the plaintext token once, because that is the only response that carries it.
-- Destructive tools (`delete_preview_database`, `restore`) carry the MCP `destructiveHint` annotation so
-  clients can require approval.
+- Destructive tools (`delete_preview_database`, `reset_preview_database`, `disable_extension`, `restore`,
+  `delete_restore_point`, `import_database`, `destroy_ephemeral_database`) carry the MCP `destructiveHint`
+  annotation so clients can require approval.
 - Connection-string tools are clearly marked secret-bearing; instruct your agent not to persist their
   output.
 - `run_sql` executes against the live database. Prefer running risky SQL against a preview created with

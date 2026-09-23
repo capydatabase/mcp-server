@@ -6,6 +6,16 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `destroy_ephemeral_database` ends an unclaimed ephemeral database before its 72 hours run out, using only its claim token: no account and no device login. The database and its data are deleted within seconds and its slot on the platform-wide cap of unclaimed ephemeral databases is freed, so an agent or CI run can hand the slot back when it is done. It is irreversible, idempotent while the database is being destroyed, and answers not-found once the database has been claimed. The `create_ephemeral_database` and `get_ephemeral_database` descriptions and the server instructions now point agents at it. The server now exposes 49 tools.
+
+### Fixed
+
+- `get_index_hygiene`'s description pointed agents at `get_index_advisor`, which does not exist;
+  it now names `suggest_indexes`.
+- README: the tool table now lists every tool the server registers (`get_usage`, `export_database`, `list_exports`, `get_export_download`, `suggest_indexes`, `get_index_hygiene` and `destroy_ephemeral_database` were missing), the safety model names all seven tools that carry `destructiveHint` instead of two, and it describes the overwrite-restore gate as the control plane enforces it: refused on production projects, and on a non-production one an org-wide key or org admin plus a single-use approval token.
+
 ## [1.11.0] - 2026-09-21
 
 ### Added

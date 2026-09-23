@@ -96,7 +96,7 @@ interface RequestOptions {
   body?: unknown;
   /**
    * Send no `Authorization` header and never touch the API key. Only the
-   * ephemeral-database create and read are anonymous: they must work before
+   * ephemeral-database create, read and destroy are anonymous: they must work before
    * (and without) a device login, which `getApiKey()` would otherwise demand.
    */
   anonymous?: boolean;
@@ -209,6 +209,21 @@ export class CapyDBClient {
       anonymous: true,
       headers: { "x-capydb-claim-token": claimToken },
     });
+  }
+
+  /**
+   * Brings the expiry forward to now; the worker's sweep deletes the database
+   * within seconds. Idempotent (204); a claimed database answers 404.
+   */
+  async destroyEphemeralDatabase(projectId: string, claimToken: string): Promise<void> {
+    await this.request<unknown>(
+      "DELETE",
+      `/v1/ephemeral-databases/${encodeURIComponent(projectId)}`,
+      {
+        anonymous: true,
+        headers: { "x-capydb-claim-token": claimToken },
+      },
+    );
   }
 
   async claimEphemeralDatabase(projectId: string, claimToken: string): Promise<Project> {
