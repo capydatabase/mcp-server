@@ -6,11 +6,35 @@ Postgres: projects, preview databases, backups, restores, imports, SQL, and obse
 Every CapyDB project runs in its own isolated database cell - a dedicated Postgres runtime
 reached with normal connection strings.
 
-Runs over stdio and talks to the CapyDB control plane API - no local database access required.
-Serves both the `2026-07-28` protocol revision and the 2025-era revisions, so it works with
-current hosts and with clients that have not adopted the new revision yet.
+Runs locally over stdio, or remotely at `https://mcp.capydb.dev/mcp`, and talks to the CapyDB
+control plane API - no local database access required. Serves both the `2026-07-28` protocol
+revision and the 2025-era revisions, so it works with current hosts and with clients that have not
+adopted the new revision yet.
 
-## Install
+## Remote server (no install)
+
+Claude on the web, desktop and mobile, and any client that supports remote MCP servers with OAuth,
+can connect to the hosted server:
+
+```text
+https://mcp.capydb.dev/mcp
+```
+
+```bash
+claude mcp add --transport http capydb https://mcp.capydb.dev/mcp
+```
+
+`initialize`, `tools/list` and the ephemeral-database tools work without signing in. The first call to
+a tool that needs an account is answered with an HTTP `401` challenge, and the client runs the OAuth
+flow: the CapyDB control plane (`https://api.capydb.dev`) is the authorization server, the user signs
+in and picks a workspace in the dashboard, and the access token is an agent API key (listed and
+revocable under **Settings → API keys**, expiring after 90 days). See
+[docs.capydb.dev/docs/guides/integrations/claude](https://docs.capydb.dev/docs/guides/integrations/claude).
+
+The same code serves both transports: `src/http.ts` is the remote entry, deployed to Vercel from this
+repository (`api/`, `vercel.json`).
+
+## Install (local stdio server)
 
 No install needed; run it with `npx`:
 
@@ -120,7 +144,8 @@ For headless/CI, add `"env": { "CAPYDB_API_KEY": "capy_..." }` to the server ent
 | `delete_restore_point` | Delete a restore point after the change is verified | **destructive** |
 | `import_preflight` | Check an external source DB before an import | read-only, connects out |
 | `import_database` | Import an external database into the project | **destructive**, requires `confirm: true` |
-| `run_sql` | Run a SQL statement against the live project DB | read-mostly; row-capped, 15s timeout, recorded in SQL history |
+| `query_sql` | Run a read-only SQL statement against the live project DB | read-only (`READ ONLY` transaction); row-capped, 15s timeout, recorded in SQL history |
+| `execute_sql` | Run a SQL statement that changes data or schema | **destructive**; row-capped, 15s timeout, recorded in SQL history |
 | `get_schema` | Complete schema document: tables, columns, keys, enums, extensions | read-only; prefer over catalog queries |
 | `generate_types` | Generate TypeScript / Zod / Drizzle code from the live schema | read-only; `style: supabase` for supabase-js compat |
 | `list_tables` | List tables and views | read-only |
@@ -150,12 +175,14 @@ be chosen per project. If the organization has no active plan, the tool fails wi
   no backups, no point-in-time recovery - so each of those is one irreversible step away from
   unrecoverable data. They stay in the dashboard and the CLI, behind a confirmation. `create_kv_store`
   returns the plaintext token once, because that is the only response that carries it.
-- Destructive tools (`delete_preview_database`, `reset_preview_database`, `disable_extension`, `restore`,
-  `delete_restore_point`, `import_database`, `destroy_ephemeral_database`) carry the MCP `destructiveHint`
-  annotation so clients can require approval.
+- Every tool has a `title` and declares its effect: read-only tools carry `readOnlyHint: true`, and every
+  other tool carries `destructiveHint` - `true` for the ones that delete or overwrite data
+  (`delete_preview_database`, `reset_preview_database`, `disable_extension`, `restore`,
+  `delete_restore_point`, `import_database`, `destroy_ephemeral_database`, `execute_sql`), `false` for the
+  ones that only add - so clients can require approval. Reads and writes never share a tool.
 - Connection-string tools are clearly marked secret-bearing; instruct your agent not to persist their
   output.
-- `run_sql` executes against the live database. Prefer running risky SQL against a preview created with
+- `execute_sql` executes against the live database. Prefer running risky SQL against a preview created with
   `create_preview_database` (mode `clone`) and its `get_preview_connection_strings`.
 - **Credential hygiene:** the device-login key is org-wide, expires after 90 days, and is meant for
   interactive sessions. For long-lived or shared agent setups, create a **project-scoped key** in the
@@ -175,7 +202,7 @@ be chosen per project. If the organization has no active plan, the tool fails wi
 
 **Investigate production state**
 
-`get_observability` → `list_tables` → `run_sql` with `SELECT`s (use `max_rows` to keep results small).
+`get_observability` → `list_tables` → `query_sql` with `SELECT`s (use `max_rows` to keep results small).
 
 **Recover data without touching production**
 
@@ -187,8 +214,13 @@ be chosen per project. If the organization has no active plan, the tool fails wi
 pnpm install
 pnpm typecheck   # tsgo (TypeScript native preview)
 pnpm lint        # oxlint
-pnpm build       # tsdown → dist/index.js
+pnpm build       # tsdown → dist/index.js (stdio), dist/http.js, dist/vercel.js
+pnpm test        # builds, then tests the HTTP entry against a stub control plane
 node dist/index.js   # CAPYDB_API_KEY=capy_... to skip the device login
+
+# Remote entry against a local control plane (backend `docker compose up`, with
+# CAPYDB_OAUTH_ISSUER=http://localhost:8090 and CAPYDB_OAUTH_RESOURCES=http://localhost:3333/mcp):
+CAPYDB_API_URL=http://localhost:8090 node scripts/dev-http.mjs   # http://localhost:3333/mcp
 ```
 
 The API client is hand-written against the control plane's OpenAPI spec

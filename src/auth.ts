@@ -70,6 +70,15 @@ interface PendingLogin {
 
 export type EnsureResult = { ok: true; apiKey: string } | { ok: false; message: string };
 
+/**
+ * The credential source a tool gates on. The stdio server resolves it through
+ * {@link AuthManager} (env, CLI config, device login); the HTTP server has the
+ * caller's OAuth bearer token and nothing to fall back to.
+ */
+export interface ToolAuth {
+  ensure(): Promise<EnsureResult>;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -224,7 +233,7 @@ function activeOrganization(config: StoredConfig): OrganizationEntry | undefined
   return undefined;
 }
 
-export class AuthManager {
+export class AuthManager implements ToolAuth {
   /** Resolved control plane base URL (no trailing slash). */
   readonly apiUrl: string;
   /** Resolved dashboard origin for approval URLs (no trailing slash). */

@@ -89,6 +89,11 @@ export interface CapyDBClientOptions {
   getApiKey: () => string;
   /** Control plane base URL. Defaults to the hosted bridge. */
   baseUrl?: string;
+  /**
+   * Headers sent with every request. The HTTP server uses this to forward its
+   * caller's address to the control plane (see `http.ts`).
+   */
+  headers?: Record<string, string>;
 }
 
 interface RequestOptions {
@@ -106,10 +111,12 @@ interface RequestOptions {
 export class CapyDBClient {
   private readonly getApiKey: () => string;
   private readonly baseUrl: string;
+  private readonly headers: Record<string, string>;
 
   constructor(options: CapyDBClientOptions) {
     this.getApiKey = options.getApiKey;
     this.baseUrl = (options.baseUrl ?? DEFAULT_API_URL).replace(/\/+$/, "");
+    this.headers = options.headers ?? {};
   }
 
   private async request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
@@ -123,6 +130,7 @@ export class CapyDBClient {
       response = await fetch(url, {
         method,
         headers: {
+          ...this.headers,
           ...(options.anonymous === true ? {} : { authorization: `Bearer ${this.getApiKey()}` }),
           accept: "application/json",
           ...(options.body !== undefined ? { "content-type": "application/json" } : {}),

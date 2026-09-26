@@ -1,6 +1,6 @@
 {
   "name": "@capydb/mcp",
-  "version": "1.12.0",
+  "version": "2.0.0",
   "description": "Official CapyDB MCP server - managed Postgres projects, preview databases, backups, restores, and SQL for AI agents.",
   "keywords": [
     "capydb",
@@ -25,6 +25,7 @@
   ],
   "scripts": {
     "build": "tsdown",
+    "test": "tsdown && node --test 'test/*.test.mjs'",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint src",
     "format": "oxfmt --write src",

@@ -21,13 +21,11 @@
  *                    is not <dashboard>/api/capydb, or the approval link 404s.
  */
 
-import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
 
-import { version as SERVER_VERSION } from "../package.json" with { type: "json" };
 import { AuthManager } from "./auth.js";
 import { CapyDBClient } from "./client.js";
-import { registerTools } from "./tools.js";
+import { createCapyDBServer, SERVER_VERSION } from "./server.js";
 
 async function main(): Promise<void> {
   // Auth and the API client are process-scoped, not per-connection: AuthManager
@@ -43,38 +41,7 @@ async function main(): Promise<void> {
   // one factory, so hosts that predate the 2026 revision keep working - do not
   // pass `legacy: 'reject'`.
   serveStdio(
-    () => {
-      const server = new McpServer(
-        {
-          name: "capydb",
-          title: "CapyDB",
-          version: SERVER_VERSION,
-          description:
-            "Official CapyDB MCP server - managed Postgres projects, preview databases, backups, restores, and SQL for AI agents.",
-          websiteUrl: "https://capydb.dev",
-          icons: [
-            { src: "https://capydb.dev/favicon.svg", mimeType: "image/svg+xml" },
-            {
-              src: "https://capydb.dev/web-app-manifest-192x192.png",
-              mimeType: "image/png",
-              sizes: ["192x192"],
-            },
-          ],
-        },
-        {
-          instructions: [
-            "CapyDB is managed Postgres. Cross-tool conventions:",
-            "- Mutating tools (create_preview_database, create_backup, restore, import_database, extension changes) return a job: poll get_job until its state is completed or failed.",
-            "- If a tool result carries a device-login approval URL, relay that URL to the user, wait for their approval, then retry the tool.",
-            "- create_ephemeral_database, get_ephemeral_database and destroy_ephemeral_database need no account and never trigger the device login: use them when the user wants a throwaway database right now. It is destroyed after 72 hours unless claim_ephemeral_database attaches it to their organization; when the user is done with it, destroy_ephemeral_database ends it early and frees its slot.",
-            "- Before destructive SQL, an import, or a restore into an existing preview, call create_restore_point first so the change is reversible.",
-            "- Connection-string results embed live database credentials: never log them or write them into files, commits, or summaries.",
-          ].join("\n"),
-        },
-      );
-      registerTools(server, client, auth);
-      return server;
-    },
+    () => createCapyDBServer(client, auth, { deviceLogin: true, provisionTimeoutMs: 5 * 60_000 }),
     {
       // Out-of-band transport errors would otherwise be swallowed.
       onerror: (error) => console.error("capydb-mcp: transport error:", error.message),

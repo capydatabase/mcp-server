@@ -4,3 +4,6 @@ dist/
 # tsc's incremental cache - a build artifact, and a stale one can silently
 # skip declaration emit when the build also cleans its output directory.
 *.tsbuildinfo
+
+# Vercel project link (per machine).
+.vercel/
