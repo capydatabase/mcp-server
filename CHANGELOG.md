@@ -6,20 +6,19 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-09-26
+
 ### Changed
 
 - `@modelcontextprotocol/server` 2.1.0 (was 2.0.0).
-
-### Added
-
-- `destroy_ephemeral_database` ends an unclaimed ephemeral database before its 72 hours run out, using only its claim token: no account and no device login. The database and its data are deleted within seconds and its slot on the platform-wide cap of unclaimed ephemeral databases is freed, so an agent or CI run can hand the slot back when it is done. It is irreversible, idempotent while the database is being destroyed, and answers not-found once the database has been claimed. The `create_ephemeral_database` and `get_ephemeral_database` descriptions and the server instructions now point agents at it. The server now exposes 49 tools.
-
-### Changed
-
 - `packageManager` is `pnpm@12.5.1` (was `pnpm@11.27.1`), matching the other CapyDB JS repos; the
   lockfile records the same pnpm version.
 - `@capydb/sdk` moved from `dependencies` to `devDependencies`. The server only imports its types
   (the bundle never references it), so `npx @capydb/mcp` no longer downloads the SDK.
+
+### Added
+
+- `destroy_ephemeral_database` ends an unclaimed ephemeral database before its 72 hours run out, using only its claim token: no account and no device login. The database and its data are deleted within seconds and its slot on the platform-wide cap of unclaimed ephemeral databases is freed, so an agent or CI run can hand the slot back when it is done. It is irreversible, idempotent while the database is being destroyed, and answers not-found once the database has been claimed. The `create_ephemeral_database` and `get_ephemeral_database` descriptions and the server instructions now point agents at it. The server now exposes 49 tools.
 
 ### Fixed
 
@@ -250,7 +249,8 @@ Tagged but never published to npm; its changes reach npm with 1.9.0.
   SQL, logs and observability. All diagnostics go to stderr; production-overwrite restore is
   deliberately not exposed as a tool.
 
-[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v1.11.0...HEAD
+[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v1.12.0...HEAD
+[1.12.0]: https://github.com/capydatabase/mcp-server/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/capydatabase/mcp-server/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/capydatabase/mcp-server/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/capydatabase/mcp-server/compare/v1.8.0...v1.9.0
