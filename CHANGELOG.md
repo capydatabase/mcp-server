@@ -6,12 +6,46 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-09-26
+
+### Added
+
+- A remote Streamable HTTP entry (`src/http.ts`), deployed from this repository to
+  `https://mcp.capydb.dev/mcp` (`api/`, `vercel.json`). Hosted clients - Claude on the web, desktop
+  and mobile, Claude Code over HTTP, and any client that supports remote MCP servers with OAuth -
+  connect with no install and no API key. Authentication is lazy: `initialize`, `tools/list` and the
+  ephemeral-database tools work without a token, and a call to any other tool without one is refused
+  with an HTTP `401` and a `WWW-Authenticate` challenge that points at the protected resource
+  metadata, which names the control plane's OAuth authorization server. A token is checked against
+  the control plane before the call reaches a tool, so a revoked or expired one also answers `401`
+  and the client signs the user in again instead of showing a tool error. Only tenant API keys
+  (`capy_live_`) are forwarded. The caller's address is passed to the control plane with the bridge
+  secret, so rate limits and the per-caller cap on unclaimed ephemeral databases key on the caller.
+- `pnpm test`: tests for the HTTP entry against a stub control plane, including a check that every
+  tool has a title and a `readOnlyHint` or `destructiveHint`. CI runs it.
+- `scripts/dev-http.mjs` serves the remote entry on localhost against a local control plane.
+
+### Changed
+
+- **Breaking:** `run_sql` is replaced by two tools. `query_sql` always runs inside a `READ ONLY`
+  transaction and is annotated read-only; `execute_sql` is the tool that may change data and is
+  annotated destructive. A single tool that both reads and writes, chosen by a `read_only` flag, let
+  a host auto-approve a call that then wrote, and the Claude connector directory rejects that shape.
+  Allowlists that name `run_sql` (for example Claude Code's `--allowedTools`) need the new names.
+- Every tool now declares its effect: the create, export, claim, extend, extension-enable/update,
+  restore-point and alert-acknowledge tools carry `destructiveHint: false`, so each tool has a
+  `title` and either `readOnlyHint` or `destructiveHint`.
+- `create_project`'s wait for provisioning is set per transport: five minutes over stdio, four over
+  HTTP to stay inside the hosting platform's request limit. The description states the actual wait.
+- The server definition (`src/server.ts`) is shared by both transports; the stdio-only instruction
+  about device-login URLs is sent only by the stdio server.
+
 ## [1.12.0] - 2026-09-26
 
 ### Changed
 
 - `@modelcontextprotocol/server` 2.1.0 (was 2.0.0).
-- `packageManager` is `pnpm@12.5.1` (was `pnpm@11.27.1`), matching the other CapyDB JS repos; the
+- `packageManager` is `pnpm@12.5.1` (was `pnpm@11.28.0`), matching the other CapyDB JS repos; the
   lockfile records the same pnpm version.
 - `@capydb/sdk` moved from `dependencies` to `devDependencies`. The server only imports its types
   (the bundle never references it), so `npx @capydb/mcp` no longer downloads the SDK.
