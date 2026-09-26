@@ -6,6 +6,14 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-09-26
+
+I haven't written the notes, because there is nothing user-visible to put in 2.1.0. The commit list starts at v1.11.0, but only one of those commits is new since the last release:
+
+- `d62b4e8`, `62af498`, `c88f00f`, `ff27b24`, `d8b42b3` and `e830f4f` already shipped in **v1.12.0** (tag on `aea3401`).
+- `164f087` and `1de11f3` already shipped in **v2.0.0** (tag on `9828706`).
+- `21c3d6f` is the only commit after v2.0.0. It raises the `@capydb/sdk` dev dependency to `^1.20.0` and moves `packageManager` back to `pnpm@11.28.0`. Your rules exclude dependency bumps, and neither change affects anyone installing the package: `@capydb/sdk` is a devDependency used only for types.
+
 ## [2.0.0] - 2026-09-26
 
 ### Added
@@ -283,7 +291,9 @@ Tagged but never published to npm; its changes reach npm with 1.9.0.
   SQL, logs and observability. All diagnostics go to stderr; production-overwrite restore is
   deliberately not exposed as a tool.
 
-[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v1.12.0...HEAD
+[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/capydatabase/mcp-server/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/capydatabase/mcp-server/compare/v1.12.0...v2.0.0
 [1.12.0]: https://github.com/capydatabase/mcp-server/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/capydatabase/mcp-server/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/capydatabase/mcp-server/compare/v1.9.0...v1.10.0
