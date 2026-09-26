@@ -39,7 +39,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@capydb/sdk": "^1.17.0",
+    "@capydb/sdk": "^1.20.0",
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
     "@types/node": "^26.6.3",
@@ -49,7 +49,7 @@
     "tsdown": "0.23.0",
     "typescript": "next"
   },
-  "packageManager": "pnpm@12.5.1",
+  "packageManager": "pnpm@11.28.0",
   "engines": {
     "node": ">=24.21.0"
   },
