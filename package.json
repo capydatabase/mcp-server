@@ -21,7 +21,8 @@
     "capydb-mcp": "./dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsdown",

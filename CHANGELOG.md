@@ -6,6 +6,11 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `LICENSE` with the MIT license text (the package was already declared MIT); it now ships in the
+  npm tarball.
+
 ### Changed
 
 - `@modelcontextprotocol/server` ^2.2.0 (was ^2.1.0).
