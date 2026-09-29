@@ -6,6 +6,8 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-09-29
+
 ### Added
 
 - `get_backup_schedule` and `update_backup_schedule`: read and change the project's scheduled backup
@@ -325,7 +327,8 @@ Tagged but never published to npm; its changes reach npm with 1.9.0.
   SQL, logs and observability. All diagnostics go to stderr; production-overwrite restore is
   deliberately not exposed as a tool.
 
-[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/capydatabase/mcp-server/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/capydatabase/mcp-server/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/capydatabase/mcp-server/compare/v1.12.0...v2.0.0
 [1.12.0]: https://github.com/capydatabase/mcp-server/compare/v1.11.0...v1.12.0
