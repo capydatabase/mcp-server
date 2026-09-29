@@ -35,7 +35,7 @@
     "prepare": "if git rev-parse --git-dir >/dev/null 2>&1; then lefthook install; else echo 'no git repository - skipping lefthook install'; fi"
   },
   "dependencies": {
-    "@modelcontextprotocol/server": "^2.1.0",
+    "@modelcontextprotocol/server": "^2.2.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -44,12 +44,12 @@
     "@commitlint/config-conventional": "^21.2.3",
     "@types/node": "^26.6.3",
     "lefthook": "^2.1.14",
-    "oxfmt": "0.70.0",
-    "oxlint": "1.85.0",
+    "oxfmt": "0.71.0",
+    "oxlint": "1.86.0",
     "tsdown": "0.23.0",
     "typescript": "next"
   },
-  "packageManager": "pnpm@11.28.0",
+  "packageManager": "pnpm@11.28.2",
   "engines": {
     "node": ">=24.21.0"
   },

@@ -6,6 +6,12 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `@modelcontextprotocol/server` ^2.2.0 (was ^2.1.0).
+- Dev tooling: oxlint 1.86.0 (was 1.85.0) and oxfmt 0.71.0 (was 0.70.0); `packageManager` is
+  `pnpm@11.28.2` (was `pnpm@11.28.0`).
+
 ## [2.1.0] - 2026-09-26
 
 I haven't written the notes, because there is nothing user-visible to put in 2.1.0. The commit list starts at v1.11.0, but only one of those commits is new since the last release:
