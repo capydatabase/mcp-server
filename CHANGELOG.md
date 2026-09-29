@@ -23,6 +23,16 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ### Changed
 
+- Every read tool now declares an `outputSchema` and returns its result as `structuredContent` as
+  well as JSON text, so clients can consume typed results. The schemas are open (fields the control
+  plane adds later pass through) and require only identifying fields, and the build checks each one
+  against the `@capydb/sdk` type generated from the OpenAPI document. Write tools that return an
+  object also carry it as `structuredContent`.
+- The list tools now return an object instead of a bare array, in the text as well:
+  `list_regions` → `{ regions }`, `list_projects` → `{ projects }`, `list_kv_stores` →
+  `{ kv_stores }`, `list_preview_databases` → `{ preview_databases }`, `list_backups` → `{ backups }`,
+  `list_exports` → `{ exports }`, `list_extensions` → `{ extensions }`, `list_tables` → `{ tables }`,
+  `list_jobs` → `{ jobs }`. Structured content must have an object root.
 - `@modelcontextprotocol/server` ^2.2.0 (was ^2.1.0).
 - Dev tooling: oxlint 1.86.0 (was 1.85.0) and oxfmt 0.71.0 (was 0.70.0); `packageManager` is
   `pnpm@11.28.2` (was `pnpm@11.28.0`).

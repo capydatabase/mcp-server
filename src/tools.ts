@@ -16,7 +16,9 @@
  *   K/V store has no backup and no restore path, so each of those is one
  *   irreversible step from an agent to unrecoverable customer data; they live in
  *   the dashboard and the CLI, behind a confirmation.
- * - Results are returned as pretty-printed JSON text.
+ * - Results are returned as pretty-printed JSON text and, for object results,
+ *   as `structuredContent`. Every read tool declares an `outputSchema`
+ *   (`output-schemas.ts`), so its result always has an object root.
  */
 
 import type { CallToolResult, McpServer } from "@modelcontextprotocol/server";
@@ -24,6 +26,38 @@ import { z } from "zod";
 
 import { sleep, type ToolAuth } from "./auth.js";
 import { CapyDBApiError, type CapyDBClient } from "./client.js";
+import {
+  alertsSchema,
+  auditEventsSchema,
+  backupsSchema,
+  connectionInfoSchema,
+  databaseSchemaSchema,
+  ephemeralDatabaseSchema,
+  exportDownloadSchema,
+  exportsSchema,
+  extensionsSchema,
+  generatedTypesSchema,
+  importPreflightSchema,
+  indexAdvisorSchema,
+  indexHygieneSchema,
+  jobSchema,
+  jobsSchema,
+  kvCredentialsSchema,
+  kvStoreSchema,
+  kvStoresSchema,
+  logsSchema,
+  observabilitySchema,
+  previewDatabasesSchema,
+  projectSchema,
+  projectsSchema,
+  regionsSchema,
+  restorePointsSchema,
+  scheduledBackupsSchema,
+  sqlResultSchema,
+  tableRowsSchema,
+  tablesSchema,
+  usageSchema,
+} from "./output-schemas.js";
 import type { Job, Project } from "./types.js";
 
 const PROVISION_POLL_INTERVAL_MS = 3_000;
@@ -49,8 +83,21 @@ export interface RegisterToolsOptions {
   provisionTimeoutMs: number;
 }
 
+/**
+ * A tool result: the value as pretty-printed JSON text, and - when it is an
+ * object - the same value as `structuredContent`, which the SDK validates
+ * against the tool's `outputSchema`. Tools with an output schema therefore
+ * return an object root (lists are wrapped, e.g. `{ projects: [...] }`).
+ */
 function jsonResult(value: unknown): CallToolResult {
-  return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
+  const text: CallToolResult = {
+    content: [{ type: "text", text: JSON.stringify(value, null, 2) }],
+  };
+  return isPlainObject(value) ? { ...text, structuredContent: value } : text;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function errorResult(error: unknown): CallToolResult {
@@ -131,9 +178,10 @@ export function registerTools(
       description:
         "List the regions a CapyDB Postgres project can be placed in. Use this to pick a region for create_project; omit the region to let CapyDB choose.",
       inputSchema: z.object({}),
+      outputSchema: regionsSchema,
       annotations: { readOnlyHint: true },
     },
-    async () => run(auth, () => client.listRegions()),
+    async () => run(auth, async () => ({ regions: await client.listRegions() })),
   );
 
   server.registerTool(
@@ -151,6 +199,7 @@ export function registerTools(
             "Organization id. Omit to derive it from the projects the API key can see (any project's organization_id field).",
           ),
       }),
+      outputSchema: usageSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ organization_id }) =>
@@ -180,6 +229,7 @@ export function registerTools(
           .optional()
           .describe("Maximum number of events to return (default 25)."),
       }),
+      outputSchema: auditEventsSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ organization_id, limit }) =>
@@ -275,9 +325,10 @@ export function registerTools(
       description:
         "List the CapyDB Postgres projects visible to the configured API key, including state, plan, region, and storage limits.",
       inputSchema: z.object({}),
+      outputSchema: projectsSchema,
       annotations: { readOnlyHint: true },
     },
-    async () => run(auth, () => client.listProjects()),
+    async () => run(auth, async () => ({ projects: await client.listProjects() })),
   );
 
   server.registerTool(
@@ -291,6 +342,7 @@ export function registerTools(
       inputSchema: z.object({
         project_id: z.string().describe("Project id."),
       }),
+      outputSchema: projectSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id }) => run(auth, () => client.getProject(project_id)),
@@ -307,6 +359,7 @@ export function registerTools(
       inputSchema: z.object({
         project_id: z.string().describe("Project id."),
       }),
+      outputSchema: connectionInfoSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id }) => run(auth, () => client.getProjectConnections(project_id)),
@@ -363,12 +416,13 @@ export function registerTools(
           .optional()
           .describe("Organization id. Omit to derive it from the projects the API key can see."),
       }),
+      outputSchema: kvStoresSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ organization_id }) =>
-      run(auth, async () =>
-        client.listKVStores(await resolveOrganizationId(client, organization_id)),
-      ),
+      run(auth, async () => ({
+        kv_stores: await client.listKVStores(await resolveOrganizationId(client, organization_id)),
+      })),
   );
 
   server.registerTool(
@@ -382,6 +436,7 @@ export function registerTools(
       inputSchema: z.object({
         project_id: z.string().describe("Project id."),
       }),
+      outputSchema: kvStoreSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id }) => run(auth, () => client.getKVStore(project_id)),
@@ -400,6 +455,7 @@ export function registerTools(
       inputSchema: z.object({
         project_id: z.string().describe("Project id."),
       }),
+      outputSchema: kvCredentialsSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id }) => run(auth, () => client.getKVCredentials(project_id)),
@@ -464,6 +520,7 @@ export function registerTools(
         project_id: z.string().describe("project_id returned by create_ephemeral_database."),
         claim_token: z.string().describe("claim_token returned by create_ephemeral_database."),
       }),
+      outputSchema: ephemeralDatabaseSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id, claim_token }) =>
@@ -546,9 +603,13 @@ export function registerTools(
       inputSchema: z.object({
         project_id: z.string().describe("Project id."),
       }),
+      outputSchema: previewDatabasesSchema,
       annotations: { readOnlyHint: true },
     },
-    async ({ project_id }) => run(auth, () => client.listPreviewDatabases(project_id)),
+    async ({ project_id }) =>
+      run(auth, async () => ({
+        preview_databases: await client.listPreviewDatabases(project_id),
+      })),
   );
 
   server.registerTool(
@@ -611,6 +672,7 @@ export function registerTools(
       inputSchema: z.object({
         preview_id: z.string().describe("Preview database id."),
       }),
+      outputSchema: connectionInfoSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ preview_id }) => run(auth, () => client.getPreviewConnections(preview_id)),
@@ -641,9 +703,11 @@ export function registerTools(
       inputSchema: z.object({
         project_id: z.string().describe("Project id."),
       }),
+      outputSchema: backupsSchema,
       annotations: { readOnlyHint: true },
     },
-    async ({ project_id }) => run(auth, () => client.listBackups(project_id)),
+    async ({ project_id }) =>
+      run(auth, async () => ({ backups: await client.listBackups(project_id) })),
   );
 
   server.registerTool(
@@ -657,6 +721,7 @@ export function registerTools(
       inputSchema: z.object({
         project_id: z.string().describe("Project id."),
       }),
+      outputSchema: scheduledBackupsSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id }) =>
@@ -750,9 +815,11 @@ export function registerTools(
       inputSchema: z.object({
         project_id: z.string().describe("Project id."),
       }),
+      outputSchema: exportsSchema,
       annotations: { readOnlyHint: true },
     },
-    async ({ project_id }) => run(auth, () => client.listExports(project_id)),
+    async ({ project_id }) =>
+      run(auth, async () => ({ exports: await client.listExports(project_id) })),
   );
 
   server.registerTool(
@@ -765,6 +832,7 @@ export function registerTools(
         project_id: z.string().describe("Project id."),
         export_id: z.string().describe("Export id from export_database or list_exports."),
       }),
+      outputSchema: exportDownloadSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id, export_id }) =>
@@ -785,9 +853,11 @@ export function registerTools(
       inputSchema: z.object({
         project_id: z.string().describe("Project id."),
       }),
+      outputSchema: extensionsSchema,
       annotations: { readOnlyHint: true },
     },
-    async ({ project_id }) => run(auth, () => client.listProjectExtensions(project_id)),
+    async ({ project_id }) =>
+      run(auth, async () => ({ extensions: await client.listProjectExtensions(project_id) })),
   );
 
   server.registerTool(
@@ -830,6 +900,7 @@ export function registerTools(
             "Minimum average selectivity percentage for a predicate to be considered (default 30).",
           ),
       }),
+      outputSchema: indexAdvisorSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id, min_filter, min_selectivity }) =>
@@ -861,6 +932,7 @@ export function registerTools(
       inputSchema: z.object({
         project_id: z.string().describe("Project id."),
       }),
+      outputSchema: indexHygieneSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id }) => run(auth, () => client.getIndexHygiene(project_id)),
@@ -944,6 +1016,7 @@ export function registerTools(
         project_id: z.string().describe("Project id."),
         target_major: z.number().int().describe("PostgreSQL major to evaluate, e.g. 18."),
       }),
+      outputSchema: jobSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id, target_major }) =>
@@ -1048,6 +1121,7 @@ export function registerTools(
             "Postgres connection URL of the source database (postgres://user:pass@host:port/db). Must be a direct or session-mode endpoint: transaction-pooler URLs (Neon '-pooler' hostnames, Supabase port 6543) are rejected. Supabase sources get their platform-managed schemas (auth/storage/realtime/…) excluded automatically.",
           ),
       }),
+      outputSchema: importPreflightSchema,
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
     async ({ project_id, source_url }) =>
@@ -1113,6 +1187,7 @@ export function registerTools(
           .optional()
           .describe("Introspect this preview database instead of the project database."),
       }),
+      outputSchema: databaseSchemaSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id, preview_id }) =>
@@ -1145,6 +1220,7 @@ export function registerTools(
           .optional()
           .describe("Generate from this preview database instead of the project database."),
       }),
+      outputSchema: generatedTypesSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id, language, style, preview_id }) =>
@@ -1166,6 +1242,7 @@ export function registerTools(
       inputSchema: z.object({
         project_id: z.string().describe("Project id."),
       }),
+      outputSchema: restorePointsSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id }) => run(auth, () => client.listRestorePoints(project_id)),
@@ -1268,6 +1345,7 @@ export function registerTools(
         "It always runs inside a READ ONLY transaction, so the database itself refuses every write (DML, DDL, TRUNCATE, SELECT INTO, sequence advancement); the refusal is a normal error. Use execute_sql only when changing data or schema is the point. " +
         sqlLimits,
       inputSchema: sqlInputSchema,
+      outputSchema: sqlResultSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id, query, max_rows }) =>
@@ -1299,9 +1377,11 @@ export function registerTools(
       inputSchema: z.object({
         project_id: z.string().describe("Project id."),
       }),
+      outputSchema: tablesSchema,
       annotations: { readOnlyHint: true },
     },
-    async ({ project_id }) => run(auth, () => client.listTables(project_id)),
+    async ({ project_id }) =>
+      run(auth, async () => ({ tables: await client.listTables(project_id) })),
   );
 
   server.registerTool(
@@ -1316,6 +1396,7 @@ export function registerTools(
         table: z.string().describe("Table name."),
         limit: z.number().int().positive().optional().describe("Maximum number of rows to return."),
       }),
+      outputSchema: tableRowsSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id, schema, table, limit }) =>
@@ -1333,6 +1414,7 @@ export function registerTools(
       inputSchema: z.object({
         project_id: z.string().describe("Project id."),
       }),
+      outputSchema: observabilitySchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id }) => run(auth, () => client.getObservability(project_id)),
@@ -1376,6 +1458,7 @@ export function registerTools(
           .optional()
           .describe("Resume strictly after a previously returned entry's cursor (tail mode)."),
       }),
+      outputSchema: logsSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id, hours, severity, limit, cursor }) =>
@@ -1411,6 +1494,7 @@ export function registerTools(
           .optional()
           .describe("Maximum alerts to return, newest first (default 50, max 200)."),
       }),
+      outputSchema: alertsSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ project_id, include_resolved, limit }) =>
@@ -1468,6 +1552,7 @@ export function registerTools(
       inputSchema: z.object({
         job_id: z.string().describe("Job id."),
       }),
+      outputSchema: jobSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ job_id }) => run(auth, () => client.getJob(job_id)),
@@ -1487,8 +1572,10 @@ export function registerTools(
           .optional()
           .describe("Maximum number of jobs to return (default 25)."),
       }),
+      outputSchema: jobsSchema,
       annotations: { readOnlyHint: true },
     },
-    async ({ project_id, limit }) => run(auth, () => client.listJobs(project_id, limit)),
+    async ({ project_id, limit }) =>
+      run(auth, async () => ({ jobs: await client.listJobs(project_id, limit) })),
   );
 }

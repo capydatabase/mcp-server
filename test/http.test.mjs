@@ -23,6 +23,33 @@ const seen = [];
  * `baseRoutes` are the ones every test relies on; a test adds its own with
  * `route()`, and they are cleared after it.
  */
+/** A project as the control plane returns it (every field the API marks required). */
+const PROJECT = {
+  id: "prj_1",
+  name: "one",
+  slug: "one",
+  organization_id: "org_1",
+  state: "ready",
+  environment: "production",
+  always_on: true,
+  runtime_status: "active",
+  region: "hel1",
+  plan: "pro",
+  postgres_version: "18",
+  storage_limit_bytes: 10737418240,
+  max_connections: 100,
+  database_name: "one",
+  role_name: "one_owner",
+  direct_port: 5432,
+  pooled_port: 6432,
+  idle_transaction_timeout: "5min",
+  statement_timeout: "0",
+  created_at: "2026-09-01T00:00:00Z",
+  updated_at: "2026-09-01T00:00:00Z",
+  // The control plane may send null for an absent optional value.
+  last_error: null,
+};
+
 const baseRoutes = {
   "GET /v1/me": ({ auth }) =>
     auth === `Bearer ${GOOD_TOKEN}`
@@ -30,7 +57,7 @@ const baseRoutes = {
       : [401, { error: "unauthorized" }],
   "GET /v1/projects": ({ auth }) =>
     auth === `Bearer ${GOOD_TOKEN}`
-      ? [200, { projects: [{ id: "prj_1", name: "one", organization_id: "org_1" }] }]
+      ? [200, { projects: [PROJECT] }]
       : [401, { error: "unauthorized" }],
 };
 let testRoutes = {};
@@ -55,7 +82,20 @@ before(async () => {
       testRoutes[key] ??
       baseRoutes[key] ??
       (url.pathname.startsWith("/v1/ephemeral-databases/")
-        ? () => [200, { project_id: "prj_1", state: "ready" }]
+        ? () => [
+            200,
+            {
+              ephemeral_database: {
+                project_id: "prj_1",
+                name: "eph-1",
+                region: "hel1",
+                state: "ready",
+                created_at: "2026-09-01T00:00:00Z",
+                expires_at: "2026-09-04T00:00:00Z",
+              },
+              connections: { username: "eph", pooled_url: "postgres://eph@x/db" },
+            },
+          ]
         : () => [404, { error: "not found" }]);
     const [status, payload] = respond({ auth, body, query: url.searchParams });
     res.writeHead(status, { "content-type": "application/json" });
@@ -293,4 +333,31 @@ test("update_project_settings patches always_on and refuses an empty change", as
 
   const empty = await callTool("update_project_settings", { project_id: "prj_1" });
   assert.equal(empty.isError, true);
+});
+
+test("every read tool advertises an open object output schema", async () => {
+  const response = await handler().mcp(rpc("tools/list", {}));
+  const { result } = await rpcResult(response);
+  const forbidsExtraKeys = (node) =>
+    node !== null &&
+    typeof node === "object" &&
+    (node.additionalProperties === false || Object.values(node).some(forbidsExtraKeys));
+  for (const tool of result.tools) {
+    if (tool.annotations?.readOnlyHint !== true) continue;
+    assert.equal(tool.outputSchema?.type, "object", `${tool.name} has no object output schema`);
+    // A closed schema would make strict clients reject fields the control
+    // plane adds later, which the SDK passes through unchanged.
+    assert.equal(forbidsExtraKeys(tool.outputSchema), false, `${tool.name} forbids extra keys`);
+  }
+});
+
+test("read tools return structured content that matches the text", async () => {
+  const listed = await callTool("list_projects", {});
+  assert.deepEqual(listed.structuredContent, { projects: [PROJECT] });
+  assert.deepEqual(JSON.parse(listed.content[0].text), listed.structuredContent);
+
+  route("GET /v1/projects/prj_1", () => [200, { project: { ...PROJECT, added_later: 1 } }]);
+  const project = await callTool("get_project", { project_id: "prj_1" });
+  assert.equal(project.structuredContent.always_on, true);
+  assert.equal(project.structuredContent.added_later, 1);
 });
