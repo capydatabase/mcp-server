@@ -34,6 +34,9 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
   `list_exports` → `{ exports }`, `list_extensions` → `{ extensions }`, `list_tables` → `{ tables }`,
   `list_jobs` → `{ jobs }`. Structured content must have an object root.
 - `@modelcontextprotocol/server` ^2.2.0 (was ^2.1.0).
+- Tests: `create_project` (provision, poll, still-running hand-back, missing plan) and
+  `import_database` (confirm gate, preflight, forwarded request) now run end to end against the stub
+  control plane, which dispatches by method and path. No change to the published package.
 - Dev tooling: oxlint 1.86.0 (was 1.85.0) and oxfmt 0.71.0 (was 0.70.0); `packageManager` is
   `pnpm@11.28.2` (was `pnpm@11.28.0`).
 

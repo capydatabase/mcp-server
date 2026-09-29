@@ -1,6 +1,7 @@
 // Exercises the remote HTTP entry against a stub control plane: the lazy-auth
-// gate, token checking, discovery metadata and the tool annotations the Claude
-// connector directory requires. Runs against the built bundle (`pnpm test`
+// gate, token checking, discovery metadata, the tool annotations the Claude
+// connector directory requires, output schemas, and whole tool flows
+// (create_project, import_database, the backup-schedule merge). Runs against the built bundle (`pnpm test`
 // builds first), so it covers what ships.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
@@ -360,4 +361,126 @@ test("read tools return structured content that matches the text", async () => {
   const project = await callTool("get_project", { project_id: "prj_1" });
   assert.equal(project.structuredContent.always_on, true);
   assert.equal(project.structuredContent.added_later, 1);
+});
+
+// ---- create_project and import_database, end to end against the stub ----------
+
+const JOB = {
+  id: "job_1",
+  type: "instance.create",
+  state: "pending",
+  organization_id: "org_1",
+  project_id: "prj_2",
+  attempts: 0,
+  max_attempts: 3,
+  created_at: "2026-09-01T00:00:00Z",
+  updated_at: "2026-09-01T00:00:00Z",
+};
+const NEW_PROJECT = { ...PROJECT, id: "prj_2", name: "shop", slug: "shop" };
+
+test("create_project provisions, polls the job and returns the ready project", async () => {
+  route("POST /v1/projects", ({ body }) => {
+    assert.deepEqual(body, { name: "shop", environment: "non_production", postgres_version: "18" });
+    return [201, { project: { ...NEW_PROJECT, state: "provisioning" }, job: JOB }];
+  });
+  route("GET /v1/jobs/job_1", () => [200, { job: { ...JOB, state: "completed" } }]);
+  route("GET /v1/projects/prj_2", () => [200, { project: NEW_PROJECT }]);
+
+  const result = await callTool("create_project", {
+    name: "shop",
+    environment: "non_production",
+    postgres_version: "18",
+  });
+  assert.notEqual(result.isError, true, result.content[0].text);
+  const payload = JSON.parse(result.content[0].text);
+  assert.equal(payload.job.state, "completed");
+  assert.equal(payload.project.state, "ready");
+  assert.equal(payload.note, undefined);
+  assert.ok(seen.some((entry) => entry.method === "GET" && entry.path === "/v1/jobs/job_1"));
+});
+
+test("create_project hands the job back when provisioning outlasts the wait", async () => {
+  route("POST /v1/projects", () => [
+    201,
+    { project: { ...NEW_PROJECT, state: "provisioning" }, job: JOB },
+  ]);
+  route("GET /v1/projects/prj_2", () => [200, { project: { ...NEW_PROJECT, state: "provisioning" } }]);
+
+  // A zero wait skips polling entirely, so the test does not sit out a poll interval.
+  const result = await callTool("create_project", { name: "shop" }, { provisionTimeoutMs: 0 });
+  assert.notEqual(result.isError, true);
+  const payload = JSON.parse(result.content[0].text);
+  assert.equal(payload.job.state, "pending");
+  assert.match(payload.note, /poll with get_job/);
+});
+
+test("create_project without an active plan points at billing", async () => {
+  route("POST /v1/projects", () => [
+    400,
+    { error: "an active CAPYDB subscription is required before provisioning projects" },
+  ]);
+  const result = await callTool("create_project", { name: "shop" });
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /No active plan.*dashboard\/settings\/billing/);
+});
+
+test("import_database without confirm never reaches the import endpoint", async () => {
+  const before = seen.length;
+  const result = await callTool("import_database", {
+    project_id: "prj_1",
+    source_url: "postgres://u:p@source.example/db",
+    confirm: false,
+  });
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /not confirmed/);
+  // The bearer check may run; nothing is sent to the import routes.
+  assert.equal(
+    seen.slice(before).some((entry) => entry.path.includes("/imports")),
+    false,
+  );
+});
+
+test("import_database forwards the confirmed import and returns its job", async () => {
+  route("POST /v1/projects/prj_1/imports/preflight", ({ body }) => {
+    assert.deepEqual(body, { source_url: "postgres://u:p@source.example/db" });
+    return [
+      200,
+      {
+        preflight: {
+          ok: true,
+          checks: [{ name: "version", status: "pass" }],
+          source: { server_version: "17.4" },
+          storage_limit_bytes: 10737418240,
+          target_version: "18",
+        },
+      },
+    ];
+  });
+  route("POST /v1/projects/prj_1/imports", ({ body }) => [
+    202,
+    { job: { ...JOB, id: "job_imp", type: "project.import", project_id: "prj_1", body } },
+  ]);
+
+  const preflight = await callTool("import_preflight", {
+    project_id: "prj_1",
+    source_url: "postgres://u:p@source.example/db",
+  });
+  assert.equal(preflight.structuredContent.ok, true);
+
+  const result = await callTool("import_database", {
+    project_id: "prj_1",
+    source_url: "postgres://u:p@source.example/db",
+    recreate: true,
+    confirm: true,
+  });
+  assert.notEqual(result.isError, true, result.content[0].text);
+  const call = seen.findLast((entry) => entry.path === "/v1/projects/prj_1/imports");
+  assert.equal(call.method, "POST");
+  assert.equal(call.headers.authorization, `Bearer ${GOOD_TOKEN}`);
+  assert.deepEqual(call.body, {
+    source_url: "postgres://u:p@source.example/db",
+    recreate: true,
+    confirm: true,
+  });
+  assert.equal(JSON.parse(result.content[0].text).id, "job_imp");
 });
