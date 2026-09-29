@@ -6,14 +6,39 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-09-29
+
 ### Added
 
+- `get_backup_schedule` and `update_backup_schedule`: read and change the project's scheduled backup
+  (UTC time, active flag, retention). The update merges the fields you pass onto the current schedule,
+  because the endpoint replaces the whole schedule and would otherwise reset an omitted retention to
+  14 days. It is annotated destructive: pausing the schedule or shortening retention reduces what can
+  be restored.
+- `list_audit_events`: the organization's audit trail, newest first, including organization-level
+  events that belong to no project.
+- `update_project_settings`: change a project's `environment` and sleep policy (`always_on`). The
+  current values are read with `get_project`, whose description now explains both. Needs an
+  organization-wide key or an organization admin.
 - `LICENSE` with the MIT license text (the package was already declared MIT); it now ships in the
   npm tarball.
 
 ### Changed
 
+- Every read tool now declares an `outputSchema` and returns its result as `structuredContent` as
+  well as JSON text, so clients can consume typed results. The schemas are open (fields the control
+  plane adds later pass through) and require only identifying fields, and the build checks each one
+  against the `@capydb/sdk` type generated from the OpenAPI document. Write tools that return an
+  object also carry it as `structuredContent`.
+- The list tools now return an object instead of a bare array, in the text as well:
+  `list_regions` → `{ regions }`, `list_projects` → `{ projects }`, `list_kv_stores` →
+  `{ kv_stores }`, `list_preview_databases` → `{ preview_databases }`, `list_backups` → `{ backups }`,
+  `list_exports` → `{ exports }`, `list_extensions` → `{ extensions }`, `list_tables` → `{ tables }`,
+  `list_jobs` → `{ jobs }`. Structured content must have an object root.
 - `@modelcontextprotocol/server` ^2.2.0 (was ^2.1.0).
+- Tests: `create_project` (provision, poll, still-running hand-back, missing plan) and
+  `import_database` (confirm gate, preflight, forwarded request) now run end to end against the stub
+  control plane, which dispatches by method and path. No change to the published package.
 - Dev tooling: oxlint 1.86.0 (was 1.85.0) and oxfmt 0.71.0 (was 0.70.0); `packageManager` is
   `pnpm@11.28.2` (was `pnpm@11.28.0`).
 
@@ -302,7 +327,8 @@ Tagged but never published to npm; its changes reach npm with 1.9.0.
   SQL, logs and observability. All diagnostics go to stderr; production-overwrite restore is
   deliberately not exposed as a tool.
 
-[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/capydatabase/mcp-server/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/capydatabase/mcp-server/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/capydatabase/mcp-server/compare/v1.12.0...v2.0.0
 [1.12.0]: https://github.com/capydatabase/mcp-server/compare/v1.11.0...v1.12.0

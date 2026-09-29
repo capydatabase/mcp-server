@@ -39,6 +39,7 @@ export type {
   PreviewDatabase,
   Project,
   ProjectAlert,
+  ProjectAuditEvent,
   ProjectConnectionInfo,
   ProjectExport,
   ProjectExtensionStatus,
@@ -49,6 +50,7 @@ export type {
   RedundantIndex,
   RegionsResponse,
   RestorePoint,
+  ScheduledBackup,
   SchemaColumn,
   SchemaEnum,
   SchemaExtension,
@@ -63,6 +65,8 @@ export type {
   SqlQueryResult as SQLQueryResult,
   TableRowsResult,
   UnusedIndex,
+  UpdateProjectRequest,
+  UpsertScheduledBackupRequest,
 } from "@capydb/sdk";
 
 import type { ProjectConnectionInfo } from "@capydb/sdk";
