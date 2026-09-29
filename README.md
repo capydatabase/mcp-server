@@ -112,9 +112,11 @@ For headless/CI, add `"env": { "CAPYDB_API_KEY": "capy_..." }` to the server ent
 | --- | --- | --- |
 | `list_regions` | List regions projects can be created in | read-only |
 | `get_usage` | Organization storage, connection and database counts against plan limits, per project | read-only |
+| `list_audit_events` | The organization's audit trail (who did what, when), newest first | read-only |
 | `create_project` | Create a Postgres project and wait for provisioning | async; waits up to 5 min |
 | `list_projects` | List your Postgres projects | read-only |
-| `get_project` | Get one project (state, plan, limits) | read-only |
+| `get_project` | Get one project (state, plan, limits, `environment`, `always_on`) | read-only |
+| `update_project_settings` | Change `environment` and the sleep policy (`always_on`) | org-wide key or org admin; idempotent |
 | `get_connection_strings` | Pooled + direct URLs for a project | **secret-bearing output** |
 | `create_ephemeral_database` | Create a throwaway database with **no account or login**; destroyed after 72h unless claimed | anonymous, **secret-bearing output** (claim token, shown once) |
 | `get_ephemeral_database` | State, expiry and (once ready) connection strings of an unclaimed ephemeral database, by claim token | anonymous, read-only, **secret-bearing output** |
@@ -138,6 +140,8 @@ For headless/CI, add `"env": { "CAPYDB_API_KEY": "capy_..." }` to the server ent
 | `get_index_hygiene` | Unused and redundant indexes, each with a `DROP INDEX CONCURRENTLY` statement | read-only; no extensions needed |
 | `major_upgrade_preflight` | Check whether the DB can move to a PostgreSQL major, without changing anything | read-only, async job |
 | `list_backups` | List backups incl. verification state | read-only |
+| `get_backup_schedule` | The scheduled backup: UTC time, active flag, retention | read-only |
+| `update_backup_schedule` | Change the scheduled backup; fields not passed keep their values | **destructive** (pausing or shorter retention reduces what can be restored), idempotent |
 | `restore` | Restore a backup / restore point / PITR timestamp **into a preview** | **destructive** to the target preview; cannot overwrite production |
 | `list_restore_points` | List named restore points + the PITR window | read-only |
 | `create_restore_point` | Pin an existing backup key or a PITR timestamp before a risky change | backup keys come from `list_backups` after `create_backup` completes |
@@ -178,7 +182,8 @@ be chosen per project. If the organization has no active plan, the tool fails wi
 - Every tool has a `title` and declares its effect: read-only tools carry `readOnlyHint: true`, and every
   other tool carries `destructiveHint` - `true` for the ones that delete or overwrite data
   (`delete_preview_database`, `reset_preview_database`, `disable_extension`, `restore`,
-  `delete_restore_point`, `import_database`, `destroy_ephemeral_database`, `execute_sql`), `false` for the
+  `delete_restore_point`, `import_database`, `destroy_ephemeral_database`, `execute_sql`,
+  `update_backup_schedule`), `false` for the
   ones that only add - so clients can require approval. Reads and writes never share a tool.
 - Connection-string tools are clearly marked secret-bearing; instruct your agent not to persist their
   output.

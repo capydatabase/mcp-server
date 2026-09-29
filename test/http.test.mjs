@@ -4,7 +4,7 @@
 // builds first), so it covers what ships.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { after, before, test } from "node:test";
+import { after, afterEach, before, test } from "node:test";
 
 import { createCapyDBHttpHandler } from "../dist/http.js";
 
@@ -17,32 +17,56 @@ let controlPlane;
 let apiUrl;
 const seen = [];
 
+/**
+ * Per-test control-plane routes, keyed "METHOD /path" (the path without its
+ * query). A route returns `[status, body]`; unrouted requests answer 404.
+ * `baseRoutes` are the ones every test relies on; a test adds its own with
+ * `route()`, and they are cleared after it.
+ */
+const baseRoutes = {
+  "GET /v1/me": ({ auth }) =>
+    auth === `Bearer ${GOOD_TOKEN}`
+      ? [200, { principal: { scopes: ["projects:read"] } }]
+      : [401, { error: "unauthorized" }],
+  "GET /v1/projects": ({ auth }) =>
+    auth === `Bearer ${GOOD_TOKEN}`
+      ? [200, { projects: [{ id: "prj_1", name: "one", organization_id: "org_1" }] }]
+      : [401, { error: "unauthorized" }],
+};
+let testRoutes = {};
+
+function route(key, respond) {
+  testRoutes[key] = respond;
+}
+
 before(async () => {
-  controlPlane = createServer((req, res) => {
-    seen.push({ method: req.method, url: req.url, headers: req.headers });
+  controlPlane = createServer(async (req, res) => {
+    let raw = "";
+    for await (const chunk of req) raw += chunk;
+    const body = raw ? JSON.parse(raw) : undefined;
+    const url = new URL(req.url, "http://stub");
+    seen.push({ method: req.method, url: req.url, path: url.pathname, headers: req.headers, body });
     const auth = req.headers.authorization;
-    const json = (status, body) => {
-      res.writeHead(status, { "content-type": "application/json" });
-      res.end(JSON.stringify(body));
-    };
-    if (req.url === "/v1/me") {
-      return auth === `Bearer ${GOOD_TOKEN}`
-        ? json(200, { principal: { scopes: ["projects:read"] } })
-        : json(401, { error: "unauthorized" });
-    }
-    if (req.url?.startsWith("/v1/ephemeral-databases/")) {
+    if (url.pathname.startsWith("/v1/ephemeral-databases/")) {
       assert.equal(auth, undefined, "anonymous tools must not send a credential");
-      return json(200, { project_id: "prj_1", state: "ready" });
     }
-    if (req.url?.startsWith("/v1/projects")) {
-      return auth === `Bearer ${GOOD_TOKEN}`
-        ? json(200, { projects: [{ id: "prj_1", name: "one" }] })
-        : json(401, { error: "unauthorized" });
-    }
-    json(404, { error: "not found" });
+    const key = `${req.method} ${url.pathname}`;
+    const respond =
+      testRoutes[key] ??
+      baseRoutes[key] ??
+      (url.pathname.startsWith("/v1/ephemeral-databases/")
+        ? () => [200, { project_id: "prj_1", state: "ready" }]
+        : () => [404, { error: "not found" }]);
+    const [status, payload] = respond({ auth, body, query: url.searchParams });
+    res.writeHead(status, { "content-type": "application/json" });
+    res.end(JSON.stringify(payload));
   });
   await new Promise((resolve) => controlPlane.listen(0, "127.0.0.1", resolve));
   apiUrl = `http://127.0.0.1:${controlPlane.address().port}`;
+});
+
+afterEach(() => {
+  testRoutes = {};
 });
 
 after(() => controlPlane.close());
@@ -170,4 +194,103 @@ test("CORS preflight is answered", async () => {
   const response = await handler().mcp(new Request(RESOURCE, { method: "OPTIONS" }));
   assert.equal(response.status, 204);
   assert.equal(response.headers.get("access-control-allow-origin"), "*");
+});
+
+/** Calls a tool with the good token and returns the JSON-RPC result. */
+async function callTool(name, args, options = {}) {
+  const response = await handler(options).mcp(
+    rpc("tools/call", { name, arguments: args }, GOOD_TOKEN),
+  );
+  assert.equal(response.status, 200);
+  const { result, error } = await rpcResult(response);
+  assert.equal(error, undefined, `${name} answered a protocol error: ${JSON.stringify(error)}`);
+  return result;
+}
+
+const SCHEDULE = {
+  id: "sch_1",
+  organization_id: "org_1",
+  project_id: "prj_1",
+  cron_hour: 3,
+  cron_minute: 15,
+  is_active: true,
+  label: "nightly",
+  retention_days: 30,
+  created_at: "2026-09-01T00:00:00Z",
+  updated_at: "2026-09-01T00:00:00Z",
+};
+
+test("update_backup_schedule changes only the fields passed", async () => {
+  route("GET /v1/projects/prj_1/scheduled-backups", () => [200, { scheduled_backups: [SCHEDULE] }]);
+  route("PUT /v1/projects/prj_1/scheduled-backups/default", ({ body }) => [
+    200,
+    { scheduled_backup: { ...SCHEDULE, ...body } },
+  ]);
+  const result = await callTool("update_backup_schedule", { project_id: "prj_1", cron_hour: 5 });
+  assert.notEqual(result.isError, true);
+  const put = seen.findLast((entry) => entry.method === "PUT");
+  // The endpoint replaces the whole row; an omitted retention would become 14.
+  assert.deepEqual(put.body, {
+    cron_hour: 5,
+    cron_minute: 15,
+    is_active: true,
+    retention_days: 30,
+    label: "nightly",
+  });
+});
+
+test("update_backup_schedule needs a time when the project has no schedule", async () => {
+  route("GET /v1/projects/prj_1/scheduled-backups", () => [200, { scheduled_backups: [] }]);
+  const before = seen.length;
+  const result = await callTool("update_backup_schedule", { project_id: "prj_1", is_active: false });
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /cron_hour and cron_minute/);
+  assert.equal(
+    seen.slice(before).some((entry) => entry.method === "PUT"),
+    false,
+  );
+});
+
+test("get_backup_schedule returns the schedule list", async () => {
+  route("GET /v1/projects/prj_1/scheduled-backups", () => [200, { scheduled_backups: [SCHEDULE] }]);
+  const result = await callTool("get_backup_schedule", { project_id: "prj_1" });
+  assert.equal(JSON.parse(result.content[0].text).scheduled_backups[0].retention_days, 30);
+});
+
+test("list_audit_events derives the organization and forwards the limit", async () => {
+  route("GET /v1/organizations/org_1/audit-events", ({ query }) => {
+    assert.equal(query.get("limit"), "5");
+    return [
+      200,
+      {
+        audit_events: [
+          {
+            id: "aud_1",
+            organization_id: "org_1",
+            action: "api_key.created",
+            actor_kind: "user",
+            actor_id: "user_1",
+            created_at: "2026-09-01T00:00:00Z",
+            metadata: { name: "ci" },
+          },
+        ],
+      },
+    ];
+  });
+  const result = await callTool("list_audit_events", { limit: 5 });
+  assert.notEqual(result.isError, true);
+  assert.equal(JSON.parse(result.content[0].text).audit_events[0].action, "api_key.created");
+});
+
+test("update_project_settings patches always_on and refuses an empty change", async () => {
+  route("PATCH /v1/projects/prj_1", ({ body }) => [
+    200,
+    { project: { id: "prj_1", name: "one", organization_id: "org_1", always_on: body.always_on } },
+  ]);
+  const result = await callTool("update_project_settings", { project_id: "prj_1", always_on: true });
+  assert.notEqual(result.isError, true);
+  assert.deepEqual(seen.findLast((entry) => entry.method === "PATCH").body, { always_on: true });
+
+  const empty = await callTool("update_project_settings", { project_id: "prj_1" });
+  assert.equal(empty.isError, true);
 });

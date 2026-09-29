@@ -29,6 +29,7 @@ import type {
   PreviewDatabase,
   Project,
   ProjectAlert,
+  ProjectAuditEvent,
   IndexAdvisorReport,
   IndexHygieneReport,
   ProjectExport,
@@ -37,9 +38,12 @@ import type {
   ProjectObservability,
   RegionsResponse,
   RestorePoint,
+  ScheduledBackup,
   SQLQueryRequest,
   SQLQueryResult,
   TableRowsResult,
+  UpdateProjectRequest,
+  UpsertScheduledBackupRequest,
 } from "./types.js";
 
 export const DEFAULT_API_URL = "https://capydb.dev/api/capydb";
@@ -192,6 +196,28 @@ export class CapyDBClient {
     return data.project;
   }
 
+  /** Environment and sleep policy (`always_on`); the control plane allows it for organization managers only. */
+  async updateProject(projectId: string, body: UpdateProjectRequest): Promise<Project> {
+    const data = await this.request<{ project: Project }>(
+      "PATCH",
+      `/v1/projects/${encodeURIComponent(projectId)}`,
+      { body },
+    );
+    return data.project;
+  }
+
+  async listOrganizationAuditEvents(
+    organizationId: string,
+    limit?: number,
+  ): Promise<ProjectAuditEvent[]> {
+    const data = await this.request<{ audit_events: ProjectAuditEvent[] | null }>(
+      "GET",
+      `/v1/organizations/${encodeURIComponent(organizationId)}/audit-events`,
+      { query: { limit } },
+    );
+    return data.audit_events ?? [];
+  }
+
   async getProjectConnections(projectId: string): Promise<ConnectionInfo> {
     const data = await this.request<{ connections: ConnectionInfo }>(
       "GET",
@@ -316,6 +342,27 @@ export class CapyDBClient {
       `/v1/projects/${encodeURIComponent(projectId)}/backups`,
     );
     return data.backups ?? [];
+  }
+
+  async listScheduledBackups(projectId: string): Promise<ScheduledBackup[]> {
+    const data = await this.request<{ scheduled_backups: ScheduledBackup[] | null }>(
+      "GET",
+      `/v1/projects/${encodeURIComponent(projectId)}/scheduled-backups`,
+    );
+    return data.scheduled_backups ?? [];
+  }
+
+  /** Replaces the project's one backup schedule as a whole (PUT semantics). */
+  async upsertScheduledBackup(
+    projectId: string,
+    body: UpsertScheduledBackupRequest,
+  ): Promise<ScheduledBackup> {
+    const data = await this.request<{ scheduled_backup: ScheduledBackup }>(
+      "PUT",
+      `/v1/projects/${encodeURIComponent(projectId)}/scheduled-backups/default`,
+      { body },
+    );
+    return data.scheduled_backup;
   }
 
   async createExport(projectId: string): Promise<{ export_id: string; job: Job }> {

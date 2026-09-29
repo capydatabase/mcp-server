@@ -8,6 +8,16 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ### Added
 
+- `get_backup_schedule` and `update_backup_schedule`: read and change the project's scheduled backup
+  (UTC time, active flag, retention). The update merges the fields you pass onto the current schedule,
+  because the endpoint replaces the whole schedule and would otherwise reset an omitted retention to
+  14 days. It is annotated destructive: pausing the schedule or shortening retention reduces what can
+  be restored.
+- `list_audit_events`: the organization's audit trail, newest first, including organization-level
+  events that belong to no project.
+- `update_project_settings`: change a project's `environment` and sleep policy (`always_on`). The
+  current values are read with `get_project`, whose description now explains both. Needs an
+  organization-wide key or an organization admin.
 - `LICENSE` with the MIT license text (the package was already declared MIT); it now ships in the
   npm tarball.
 
