@@ -121,7 +121,7 @@ For headless/CI, add `"env": { "CAPYDB_API_KEY": "capy_..." }` to the server ent
 | `update_project_settings` | Change `environment` and the sleep policy (`always_on`) | org-wide key or org admin; idempotent |
 | `retry_provisioning` | Provision a project again whose provisioning failed | async job; idempotent; org-wide key or org admin |
 | `get_notification_preferences` | Which notification emails the organization gets, and the extra recipients | read-only |
-| `update_notification_preferences` | Change alert emails and recipients; fields not passed keep their values | org admin; idempotent |
+| `update_notification_preferences` | Change alert emails and recipients; fields not passed keep their values | org admin + `organizations:write` (not granted to the remote connector); idempotent |
 | `get_connection_strings` | Pooled + direct URLs for a project (plus `app`, the `app_user` URLs, once the split role is enabled) | **secret-bearing output** |
 | `get_app_role` | Whether the project has the split-role runtime login `app_user` | read-only |
 | `enable_app_role` | Issue `app_user`, a login row-level security applies to | async job; 404 where the platform does not offer it yet |

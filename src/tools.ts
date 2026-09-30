@@ -483,7 +483,8 @@ export function registerTools(
         "Change the organization's notification emails. Only the fields you pass change; the others keep their current values (read them with get_notification_preferences). " +
         "A recipient list you pass REPLACES that list - to add an address, pass the current addresses plus the new one. Each list holds at most 10 addresses; duplicates are removed. " +
         "Turning alert emails off means nobody is emailed about storage, backup or reachability alerts, so only do it when the user asks. Billing notices cannot be switched off. " +
-        "Requires an organization admin or an organization-wide API key minted by one (HTTP 403 otherwise).",
+        "Requires an organization admin or an organization-wide API key minted by one, with the organizations:write scope (HTTP 403 otherwise). " +
+        "The remote CapyDB connector's sign-in does not grant that scope, so there the call is refused with 403 - point the user at the dashboard's notification settings instead.",
       inputSchema: z.object({
         organization_id: z
           .string()
