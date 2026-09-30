@@ -178,7 +178,7 @@ importers:
         version: 1.22.0
       '@commitlint/cli':
         specifier: ^21.2.3
-        version: 21.2.3(@types/node@26.6.3)(conventional-commits-parser@7.1.2)(typescript@7.1.0-dev.20260929.1)
+        version: 21.2.3(@types/node@26.6.3)(conventional-commits-parser@7.1.2)(typescript@7.1.0-dev.20260930.4)
       '@commitlint/config-conventional':
         specifier: ^21.2.3
         version: 21.2.3
@@ -196,10 +196,10 @@ importers:
         version: 1.86.0
       tsdown:
         specifier: 0.23.0
-        version: 0.23.0(typescript@7.1.0-dev.20260929.1)
+        version: 0.23.0(typescript@7.1.0-dev.20260930.4)
       typescript:
         specifier: next
-        version: 7.1.0-dev.20260929.1
+        version: 7.1.0-dev.20260930.4
 
 packages:
 
@@ -668,44 +668,44 @@ packages:
   '@types/node@26.6.3':
     resolution: {integrity: sha512-dsqMQQoeTLqu9wynDD00q573mNzso3IdQOAfHRJqLCcmCFPoGo9A1bDpUcv/9tnKpErQWv9uKeGfl37EIS02Yg==}
 
-  '@typescript/typescript-darwin-arm64@7.1.0-dev.20260929.1':
-    resolution: {integrity: sha512-dJhNpxeVxqYqDL6K9cy63eqvzmnKEX39uv5ujbt7n73biiPK/gE3jkq6icwQz0dRZP8HKEhk6pmFb7Ytmt3PsA==}
+  '@typescript/typescript-darwin-arm64@7.1.0-dev.20260930.4':
+    resolution: {integrity: sha512-/k0in+czN7835T9HwQ7r73/PmhkLn+5yhreiO9zPGpErXkv7P97ksHK9ImSFSAs2/gXboazzPpsOl+mk0zA1iQ==}
     engines: {node: '>=16.20.0'}
     cpu: [arm64]
     os: [darwin]
 
-  '@typescript/typescript-darwin-x64@7.1.0-dev.20260929.1':
-    resolution: {integrity: sha512-bx4Bc8v+WqXZUzRRI2j/jDP7/1aOmzRaakOEUnwH5ad5SA2gJcA5w+Vd+nxpANSIlJ0LE90sakFTUfWdyOKN6A==}
+  '@typescript/typescript-darwin-x64@7.1.0-dev.20260930.4':
+    resolution: {integrity: sha512-ITDKKWveMkFtQYPwpWqerAKmYAwh1kGIzzn2NEomufg/LBrbdo0F4LSotLmO2wq0vDQlTFZBMjikNOgQpxU09w==}
     engines: {node: '>=16.20.0'}
     cpu: [x64]
     os: [darwin]
 
-  '@typescript/typescript-linux-arm64@7.1.0-dev.20260929.1':
-    resolution: {integrity: sha512-sJadLogwZGfSg25r+dWa8uSs+gk4x6i1PZ4bYge47PwJ6fGte1qRJyCYEb5bpbEISjvXeyDPhNbW/52d1RJWxQ==}
+  '@typescript/typescript-linux-arm64@7.1.0-dev.20260930.4':
+    resolution: {integrity: sha512-3zBDMDf+XNflm7d7JlL+eCeSq8eb0TtYE5GTs7c8NkA6RxlabvUTYsfH7MEPvEpawODuU89knqE5AsOlpNQxEg==}
     engines: {node: '>=16.20.0'}
     cpu: [arm64]
     os: [linux]
 
-  '@typescript/typescript-linux-arm@7.1.0-dev.20260929.1':
-    resolution: {integrity: sha512-z/wnfIGgl1PrlGEcetVhAAK9XBCymewKEA0L7O5zSXFai2bICayx+amWr4KYLJhevkI7h3yxM7CBrTWWj+jDWw==}
+  '@typescript/typescript-linux-arm@7.1.0-dev.20260930.4':
+    resolution: {integrity: sha512-0qLPMj5LqB/0dQLIdysmpF/CBoj4JWKaXrCtls7eIy3wRj+zxLJH9xw6EjIznxH3cTw0K/auVzGd11rRa09xaQ==}
     engines: {node: '>=16.20.0'}
     cpu: [arm]
     os: [linux]
 
-  '@typescript/typescript-linux-x64@7.1.0-dev.20260929.1':
-    resolution: {integrity: sha512-y5zegerny0t8PCsluQNzMKO9xoYvqyYD+TA3Io7yj2crikm1Y4TUMpj/2VyHX75g+G5IllGbGnaNI8UFKUQ2Fg==}
+  '@typescript/typescript-linux-x64@7.1.0-dev.20260930.4':
+    resolution: {integrity: sha512-nit0a2o1oZLc15Vxx01WmEwxh58mNru+fbdrl2w2ntsrs277G4E5bTVlmjusQTMQrYaoGPQ87dHP4iiGCwGR0w==}
     engines: {node: '>=16.20.0'}
     cpu: [x64]
     os: [linux]
 
-  '@typescript/typescript-win32-arm64@7.1.0-dev.20260929.1':
-    resolution: {integrity: sha512-4PE8d8xizDqmkrmisJdk161f9Tpv3Fx6vEW7E7sjd1YeERA9fijdtsjdefXOfDLMwsEJMHJOsTpJ6D0Uj0fQbg==}
+  '@typescript/typescript-win32-arm64@7.1.0-dev.20260930.4':
+    resolution: {integrity: sha512-+82D46C7JiTuMEY9R8sbSphs68rJcMZs9QvN0yx+PwQkuFx64OfrC5mQ2XYHKBgmx2y9MYaVsb9/3eZsCOuf6A==}
     engines: {node: '>=16.20.0'}
     cpu: [arm64]
     os: [win32]
 
-  '@typescript/typescript-win32-x64@7.1.0-dev.20260929.1':
-    resolution: {integrity: sha512-2FrwvlLkwL3c3fsI2xsehk1C7bNj/eBrCIq3NnwVWZdURlX/l3MaZhkq4lfnH/cjLlDvzTpJOR6m44E9TGI+oA==}
+  '@typescript/typescript-win32-x64@7.1.0-dev.20260930.4':
+    resolution: {integrity: sha512-bwUDNgcarVhWX6HF5uOFtPStCfOE9tLtDMYO8auDoLMp1GYXWxlet7Lh+SN2x506wtA8170nY1+3IHZwWPwd/w==}
     engines: {node: '>=16.20.0'}
     cpu: [x64]
     os: [win32]
@@ -1226,8 +1226,8 @@ packages:
       unrun:
         optional: true
 
-  typescript@7.1.0-dev.20260929.1:
-    resolution: {integrity: sha512-ZFhJbdPZYLrgNjUL2ZimvvQ1hYKyZVoZpfNcZyfVZBukWU5ui/ovGPbOZOaXsogyXWmGhCv3H/2VIa2NFV44OA==}
+  typescript@7.1.0-dev.20260930.4:
+    resolution: {integrity: sha512-SHLXGxB3FtSbkBdHOIPJibBMRJinqsXaYHzcheJO5cKYP6x2Sdmq3c9iU8lnGwEBU7D9KEBsWZiTz7nA1DO4Kw==}
     engines: {node: '>=16.20.0'}
     hasBin: true
 
@@ -1281,12 +1281,12 @@ snapshots:
 
   '@capydb/sdk@1.22.0': {}
 
-  '@commitlint/cli@21.2.3(@types/node@26.6.3)(conventional-commits-parser@7.1.2)(typescript@7.1.0-dev.20260929.1)':
+  '@commitlint/cli@21.2.3(@types/node@26.6.3)(conventional-commits-parser@7.1.2)(typescript@7.1.0-dev.20260930.4)':
     dependencies:
       '@commitlint/config-conventional': 21.2.3
       '@commitlint/format': 21.2.3
       '@commitlint/lint': 21.2.3
-      '@commitlint/load': 21.2.3(@types/node@26.6.3)(typescript@7.1.0-dev.20260929.1)
+      '@commitlint/load': 21.2.3(@types/node@26.6.3)(typescript@7.1.0-dev.20260930.4)
       '@commitlint/read': 21.2.3(conventional-commits-parser@7.1.2)
       '@commitlint/types': 21.2.3
       tinyexec: 1.3.1
@@ -1331,14 +1331,14 @@ snapshots:
       '@commitlint/rules': 21.2.3
       '@commitlint/types': 21.2.3
 
-  '@commitlint/load@21.2.3(@types/node@26.6.3)(typescript@7.1.0-dev.20260929.1)':
+  '@commitlint/load@21.2.3(@types/node@26.6.3)(typescript@7.1.0-dev.20260930.4)':
     dependencies:
       '@commitlint/config-validator': 21.2.3
       '@commitlint/execute-rule': 21.0.1
       '@commitlint/resolve-extends': 21.2.3
       '@commitlint/types': 21.2.3
-      cosmiconfig: 9.0.2(typescript@7.1.0-dev.20260929.1)
-      cosmiconfig-typescript-loader: 6.3.0(@types/node@26.6.3)(cosmiconfig@9.0.2(typescript@7.1.0-dev.20260929.1))(typescript@7.1.0-dev.20260929.1)
+      cosmiconfig: 9.0.2(typescript@7.1.0-dev.20260930.4)
+      cosmiconfig-typescript-loader: 6.3.0(@types/node@26.6.3)(cosmiconfig@9.0.2(typescript@7.1.0-dev.20260930.4))(typescript@7.1.0-dev.20260930.4)
       es-toolkit: 1.52.0
       is-plain-obj: 4.1.0
       picocolors: 1.1.1
@@ -1586,25 +1586,25 @@ snapshots:
     dependencies:
       undici-types: 8.9.0
 
-  '@typescript/typescript-darwin-arm64@7.1.0-dev.20260929.1':
+  '@typescript/typescript-darwin-arm64@7.1.0-dev.20260930.4':
     optional: true
 
-  '@typescript/typescript-darwin-x64@7.1.0-dev.20260929.1':
+  '@typescript/typescript-darwin-x64@7.1.0-dev.20260930.4':
     optional: true
 
-  '@typescript/typescript-linux-arm64@7.1.0-dev.20260929.1':
+  '@typescript/typescript-linux-arm64@7.1.0-dev.20260930.4':
     optional: true
 
-  '@typescript/typescript-linux-arm@7.1.0-dev.20260929.1':
+  '@typescript/typescript-linux-arm@7.1.0-dev.20260930.4':
     optional: true
 
-  '@typescript/typescript-linux-x64@7.1.0-dev.20260929.1':
+  '@typescript/typescript-linux-x64@7.1.0-dev.20260930.4':
     optional: true
 
-  '@typescript/typescript-win32-arm64@7.1.0-dev.20260929.1':
+  '@typescript/typescript-win32-arm64@7.1.0-dev.20260930.4':
     optional: true
 
-  '@typescript/typescript-win32-x64@7.1.0-dev.20260929.1':
+  '@typescript/typescript-win32-x64@7.1.0-dev.20260930.4':
     optional: true
 
   '@yuku-codegen/binding-android-arm64@0.10.2':
@@ -1719,21 +1719,21 @@ snapshots:
       '@simple-libs/stream-utils': 2.0.0
       argue-cli: 3.2.0
 
-  cosmiconfig-typescript-loader@6.3.0(@types/node@26.6.3)(cosmiconfig@9.0.2(typescript@7.1.0-dev.20260929.1))(typescript@7.1.0-dev.20260929.1):
+  cosmiconfig-typescript-loader@6.3.0(@types/node@26.6.3)(cosmiconfig@9.0.2(typescript@7.1.0-dev.20260930.4))(typescript@7.1.0-dev.20260930.4):
     dependencies:
       '@types/node': 26.6.3
-      cosmiconfig: 9.0.2(typescript@7.1.0-dev.20260929.1)
+      cosmiconfig: 9.0.2(typescript@7.1.0-dev.20260930.4)
       jiti: 2.6.1
-      typescript: 7.1.0-dev.20260929.1
+      typescript: 7.1.0-dev.20260930.4
 
-  cosmiconfig@9.0.2(typescript@7.1.0-dev.20260929.1):
+  cosmiconfig@9.0.2(typescript@7.1.0-dev.20260930.4):
     dependencies:
       env-paths: 2.2.1
       import-fresh: 3.3.1
       js-yaml: 4.3.2
       parse-json: 5.2.0
     optionalDependencies:
-      typescript: 7.1.0-dev.20260929.1
+      typescript: 7.1.0-dev.20260930.4
 
   defu@6.1.7: {}
 
@@ -1920,7 +1920,7 @@ snapshots:
 
   resolve-pkg-maps@1.0.0: {}
 
-  rolldown-plugin-dts@0.28.6(rolldown@1.2.11)(typescript@7.1.0-dev.20260929.1):
+  rolldown-plugin-dts@0.28.6(rolldown@1.2.11)(typescript@7.1.0-dev.20260930.4):
     dependencies:
       dts-resolver: 3.0.0
       get-tsconfig: 5.0.0-beta.6
@@ -1930,7 +1930,7 @@ snapshots:
       yuku-codegen: 0.10.2
       yuku-parser: 0.10.2
     optionalDependencies:
-      typescript: 7.1.0-dev.20260929.1
+      typescript: 7.1.0-dev.20260930.4
     transitivePeerDependencies:
       - oxc-resolver
 
@@ -1983,7 +1983,7 @@ snapshots:
 
   tree-kill@1.2.2: {}
 
-  tsdown@0.23.0(typescript@7.1.0-dev.20260929.1):
+  tsdown@0.23.0(typescript@7.1.0-dev.20260930.4):
     dependencies:
       cac: 7.0.0
       defu: 6.1.7
@@ -1993,14 +1993,14 @@ snapshots:
       obug: 2.2.1
       picomatch: 4.0.7
       rolldown: 1.2.11
-      rolldown-plugin-dts: 0.28.6(rolldown@1.2.11)(typescript@7.1.0-dev.20260929.1)
+      rolldown-plugin-dts: 0.28.6(rolldown@1.2.11)(typescript@7.1.0-dev.20260930.4)
       tinyexec: 1.3.1
       tinyglobby: 0.2.17
       tree-kill: 1.2.2
       unconfig-core: 7.5.0
       verkit: 0.4.1
     optionalDependencies:
-      typescript: 7.1.0-dev.20260929.1
+      typescript: 7.1.0-dev.20260930.4
     transitivePeerDependencies:
       - '@typescript/native-preview'
       - '@volar/typescript'
@@ -2008,15 +2008,15 @@ snapshots:
       - oxc-resolver
       - vue-tsc
 
-  typescript@7.1.0-dev.20260929.1:
+  typescript@7.1.0-dev.20260930.4:
     optionalDependencies:
-      '@typescript/typescript-darwin-arm64': 7.1.0-dev.20260929.1
-      '@typescript/typescript-darwin-x64': 7.1.0-dev.20260929.1
-      '@typescript/typescript-linux-arm': 7.1.0-dev.20260929.1
-      '@typescript/typescript-linux-arm64': 7.1.0-dev.20260929.1
-      '@typescript/typescript-linux-x64': 7.1.0-dev.20260929.1
-      '@typescript/typescript-win32-arm64': 7.1.0-dev.20260929.1
-      '@typescript/typescript-win32-x64': 7.1.0-dev.20260929.1
+      '@typescript/typescript-darwin-arm64': 7.1.0-dev.20260930.4
+      '@typescript/typescript-darwin-x64': 7.1.0-dev.20260930.4
+      '@typescript/typescript-linux-arm': 7.1.0-dev.20260930.4
+      '@typescript/typescript-linux-arm64': 7.1.0-dev.20260930.4
+      '@typescript/typescript-linux-x64': 7.1.0-dev.20260930.4
+      '@typescript/typescript-win32-arm64': 7.1.0-dev.20260930.4
+      '@typescript/typescript-win32-x64': 7.1.0-dev.20260930.4
 
   unconfig-core@7.5.0:
     dependencies:

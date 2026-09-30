@@ -6,6 +6,10 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Dev tooling: `typescript@next` 7.1.0-dev.20260930.4 (was 7.1.0-dev.20260929.1).
+
 ## [2.4.0] - 2026-09-30
 
 ### Added
