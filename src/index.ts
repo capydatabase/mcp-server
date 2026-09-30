@@ -33,7 +33,11 @@ async function main(): Promise<void> {
   // the factory below can run more than once per process - once for the pinned
   // connection, plus once for a discarded `server/discover` probe.
   const auth = await AuthManager.create();
-  const client = new CapyDBClient({ getApiKey: () => auth.apiKey(), baseUrl: auth.apiUrl });
+  const client = new CapyDBClient({
+    getApiKey: () => auth.apiKey(),
+    peekApiKey: () => auth.currentKey(),
+    baseUrl: auth.apiUrl,
+  });
 
   // `serveStdio` owns the transport and picks the protocol era from the opening
   // exchange: `server/discover` pins the connection to 2026-07-28, an

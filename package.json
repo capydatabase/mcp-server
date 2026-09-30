@@ -1,6 +1,6 @@
 {
   "name": "@capydb/mcp",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Official CapyDB MCP server - managed Postgres projects, preview databases, backups, restores, and SQL for AI agents.",
   "keywords": [
     "capydb",
@@ -40,11 +40,11 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@capydb/sdk": "^1.21.0",
+    "@capydb/sdk": "^1.22.0",
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
     "@types/node": "^26.6.3",
-    "lefthook": "^2.1.14",
+    "lefthook": "^2.1.15",
     "oxfmt": "0.71.0",
     "oxlint": "1.86.0",
     "tsdown": "0.23.0",

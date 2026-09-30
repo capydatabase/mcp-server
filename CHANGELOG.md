@@ -6,15 +6,59 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-09-30
+
+### Added
+
+- `list_postgres_versions`: the Postgres majors open for new databases with their channel (previous,
+  stable, current, beta), the default and whether each is production ready. `create_project` and
+  `create_ephemeral_database` accept `postgres_version` `"19"`, which the control plane takes only
+  while it offers the beta.
+- Self-serve major upgrades: `get_upgrade_status` (the upgrade in flight and
+  `rollback_available_until`), and the destructive `upgrade_postgres_major`, `confirm_major_upgrade`
+  and `rollback_major_upgrade`. Each step takes an `approval_token` the user mints in the dashboard;
+  the control plane refuses to mint one for an API key, so an agent can only carry out a step a person
+  approved. `major_upgrade_preflight` now says a passed preflight is valid for an hour.
+- `retry_provisioning`: provision a project again whose provisioning failed.
+- Split role model: `get_app_role`, `enable_app_role` and `rotate_app_role` (destructive: the old
+  `app_user` password stops working). `get_connection_strings` describes the `app` connection strings.
+- `run_preview_sql`: run a statement against a preview database, with `allow_unqualified_writes` for
+  rehearsing a destructive statement there.
+- `lint_schema`: the schema and index lint report (the same as `capydb db lint --json`) for a project
+  or a preview.
+- `sync_integration_env`: push the connection env vars to a connected Vercel, Netlify or Cloudflare
+  integration again.
+- `get_notification_preferences` and `update_notification_preferences` (merges the fields you pass
+  onto the current preferences, because the endpoint replaces them as a whole).
+- `search_logs`: search up to 30 days of archived logs by SQLSTATE, severity and text. Where log
+  search is not enabled the control plane answers 503, which the tool reports as such.
+- `get_status_history`: CapyDB's public per-region daily uptime and incidents; works without an
+  account.
+
+### Changed
+
+- Dev tooling: lefthook ^2.1.15.
+- `list_regions` returns `{ regions, region_details }`: the neutral region ids (`eu-north-1`) and, in
+  the same order, their display name and location. The description says `hel1` is only a deprecated
+  alias.
+- `restore` returns `{ job, pitr }` instead of the bare job: for a point-in-time restore, `pitr`
+  reports the requested time, the time the restore runs to and whether it was clamped to the latest
+  restorable point.
+- `generate_types` accepts `language` `go` (with `package`) and `python` (with `style` `dataclass`
+  or `pydantic`).
+- `create_ephemeral_database` sends the caller's credential when one is already at hand (the remote
+  server's OAuth token, or the local server's saved key - it never starts a login), so its rate limit
+  and the bound on unclaimed databases count against the caller's organization instead of a shared
+  network address. A saved key the control plane refuses is dropped and the call repeated
+  anonymously.
+- Output schemas and descriptions cover `postgres_channel` and `postgres_warning` on projects and
+  ephemeral databases, the K/V `stopped` state with `stopped_reason`, the `expired` backup state and
+  the `wake` block (scale-to-zero wake count and latency) of `get_observability`.
+
 ## [2.3.0] - 2026-09-29
 
-I haven't written 2.3.0 notes, because nothing in that list is new since the last release.
-
-The commits you gave are counted from v2.1.0, but `v2.2.0` is already tagged at `bef6928`. That tag includes `ad0c9af`, `613b8d6`, `6869a7a`, `2ae7867`, `94faa59` and `0d30dc3`, and all of them are already written up under `## [2.2.0] - 2026-09-29` in `CHANGELOG.md`.
-
-`git log v2.2.0..HEAD` shows only one commit since then (apart from the merge):
-
-- `ed0f9a2` updates `@capydb/sdk` from ^1.20.0 to ^1.21.0. That package is a dev dependency used only for types, so it doesn't ship in the package and your rules leave it out.
+No user-facing changes: the release only raised the `@capydb/sdk` dev dependency (types only, not
+shipped) to ^1.21.0.
 
 ## [2.2.0] - 2026-09-29
 
@@ -54,11 +98,8 @@ The commits you gave are counted from v2.1.0, but `v2.2.0` is already tagged at 
 
 ## [2.1.0] - 2026-09-26
 
-I haven't written the notes, because there is nothing user-visible to put in 2.1.0. The commit list starts at v1.11.0, but only one of those commits is new since the last release:
-
-- `d62b4e8`, `62af498`, `c88f00f`, `ff27b24`, `d8b42b3` and `e830f4f` already shipped in **v1.12.0** (tag on `aea3401`).
-- `164f087` and `1de11f3` already shipped in **v2.0.0** (tag on `9828706`).
-- `21c3d6f` is the only commit after v2.0.0. It raises the `@capydb/sdk` dev dependency to `^1.20.0` and moves `packageManager` back to `pnpm@11.28.0`. Your rules exclude dependency bumps, and neither change affects anyone installing the package: `@capydb/sdk` is a devDependency used only for types.
+No user-facing changes: the release only raised the `@capydb/sdk` dev dependency (types only, not
+shipped) to ^1.20.0 and moved `packageManager` to `pnpm@11.28.0`.
 
 ## [2.0.0] - 2026-09-26
 

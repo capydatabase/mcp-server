@@ -24,7 +24,7 @@ https://mcp.capydb.dev/mcp
 claude mcp add --transport http capydb https://mcp.capydb.dev/mcp
 ```
 
-`initialize`, `tools/list` and the ephemeral-database tools work without signing in. The first call to
+`initialize`, `tools/list`, the ephemeral-database tools and `get_status_history` work without signing in. The first call to
 a tool that needs an account is answered with an HTTP `401` challenge, and the client runs the OAuth
 flow: the CapyDB control plane (`https://api.capydb.dev`) is the authorization server, the user signs
 in and picks a workspace in the dashboard, and the access token is an agent API key (listed and
@@ -110,14 +110,23 @@ For headless/CI, add `"env": { "CAPYDB_API_KEY": "capy_..." }` to the server ent
 
 | Tool | What it does | Notes |
 | --- | --- | --- |
-| `list_regions` | List regions projects can be created in | read-only |
+| `list_regions` | Region ids projects can be created in (e.g. `eu-north-1`), with display names | read-only |
+| `list_postgres_versions` | Postgres majors open for new databases, with channel (previous/stable/current/beta) and the default | read-only |
+| `get_status_history` | Public per-region daily uptime and incidents | anonymous, read-only |
 | `get_usage` | Organization storage, connection and database counts against plan limits, per project | read-only |
 | `list_audit_events` | The organization's audit trail (who did what, when), newest first | read-only |
 | `create_project` | Create a Postgres project and wait for provisioning | async; waits up to 5 min |
 | `list_projects` | List your Postgres projects | read-only |
 | `get_project` | Get one project (state, plan, limits, `environment`, `always_on`) | read-only |
 | `update_project_settings` | Change `environment` and the sleep policy (`always_on`) | org-wide key or org admin; idempotent |
-| `get_connection_strings` | Pooled + direct URLs for a project | **secret-bearing output** |
+| `retry_provisioning` | Provision a project again whose provisioning failed | async job; idempotent; org-wide key or org admin |
+| `get_notification_preferences` | Which notification emails the organization gets, and the extra recipients | read-only |
+| `update_notification_preferences` | Change alert emails and recipients; fields not passed keep their values | org admin + `organizations:write` (not granted to the remote connector); idempotent |
+| `get_connection_strings` | Pooled + direct URLs for a project (plus `app`, the `app_user` URLs, once the split role is enabled) | **secret-bearing output** |
+| `get_app_role` | Whether the project has the split-role runtime login `app_user` | read-only |
+| `enable_app_role` | Issue `app_user`, a login row-level security applies to | async job; 404 where the platform does not offer it yet |
+| `rotate_app_role` | Replace the `app_user` password | **destructive** (the old password stops working), async job |
+| `sync_integration_env` | Push connection env vars again to a connected Vercel / Netlify / Cloudflare integration | **destructive** (overwrites edited values), async job |
 | `create_ephemeral_database` | Create a throwaway database with **no account or login**; destroyed after 72h unless claimed | anonymous, **secret-bearing output** (claim token, shown once) |
 | `get_ephemeral_database` | State, expiry and (once ready) connection strings of an unclaimed ephemeral database, by claim token | anonymous, read-only, **secret-bearing output** |
 | `destroy_ephemeral_database` | Destroy an unclaimed ephemeral database early with its claim token; frees its slot | anonymous, **destructive**, idempotent |
@@ -128,6 +137,7 @@ For headless/CI, add `"env": { "CAPYDB_API_KEY": "capy_..." }` to the server ent
 | `reset_preview_database` | Reset a preview back to its base state | **destructive** to the preview, async job |
 | `extend_preview_ttl` | Extend a preview's TTL | mutates TTL only |
 | `get_preview_connection_strings` | Pooled + direct URLs for a preview | **secret-bearing output** |
+| `run_preview_sql` | Run a SQL statement against a preview database | **destructive** to the preview; `allow_unqualified_writes` to rehearse a destructive statement |
 | `create_backup` | On-demand backup of the project DB | async job |
 | `export_database` | Logical export (`pg_dump` custom-format archive) of the project DB; expires after 7 days | async job |
 | `list_exports` | List a project's exports, newest first | read-only |
@@ -139,10 +149,14 @@ For headless/CI, add `"env": { "CAPYDB_API_KEY": "capy_..." }` to the server ent
 | `suggest_indexes` | Index candidates from the predicates queries actually ran, costed as hypothetical indexes | read-only; needs `pg_qualstats` (+ `hypopg` for estimates) |
 | `get_index_hygiene` | Unused and redundant indexes, each with a `DROP INDEX CONCURRENTLY` statement | read-only; no extensions needed |
 | `major_upgrade_preflight` | Check whether the DB can move to a PostgreSQL major, without changing anything | read-only, async job |
+| `get_upgrade_status` | The major upgrade in flight and its rollback window | read-only |
+| `upgrade_postgres_major` | Move the DB to a newer PostgreSQL major (previous DB kept 72h for rollback) | **destructive**, async job; needs the user's approval token and a preflight passed within the hour |
+| `confirm_major_upgrade` | End the rollback window early, destroying the previous DB | **destructive**, async job; approval token |
+| `rollback_major_upgrade` | Swap back to the previous DB, discarding writes since the cutover | **destructive**, async job; approval token |
 | `list_backups` | List backups incl. verification state | read-only |
 | `get_backup_schedule` | The scheduled backup: UTC time, active flag, retention | read-only |
 | `update_backup_schedule` | Change the scheduled backup; fields not passed keep their values | **destructive** (pausing or shorter retention reduces what can be restored), idempotent |
-| `restore` | Restore a backup / restore point / PITR timestamp **into a preview** | **destructive** to the target preview; cannot overwrite production |
+| `restore` | Restore a backup / restore point / PITR timestamp **into a preview** | **destructive** to the target preview; cannot overwrite production; reports a clamped PITR target in `pitr` |
 | `list_restore_points` | List named restore points + the PITR window | read-only |
 | `create_restore_point` | Pin an existing backup key or a PITR timestamp before a risky change | backup keys come from `list_backups` after `create_backup` completes |
 | `delete_restore_point` | Delete a restore point after the change is verified | **destructive** |
@@ -151,11 +165,13 @@ For headless/CI, add `"env": { "CAPYDB_API_KEY": "capy_..." }` to the server ent
 | `query_sql` | Run a read-only SQL statement against the live project DB | read-only (`READ ONLY` transaction); row-capped, 15s timeout, recorded in SQL history |
 | `execute_sql` | Run a SQL statement that changes data or schema | **destructive**; row-capped, 15s timeout, recorded in SQL history |
 | `get_schema` | Complete schema document: tables, columns, keys, enums, extensions | read-only; prefer over catalog queries |
-| `generate_types` | Generate TypeScript / Zod / Drizzle code from the live schema | read-only; `style: supabase` for supabase-js compat |
+| `generate_types` | Generate TypeScript / Zod / Drizzle / Go / Python code from the live schema | read-only; `style: supabase` for supabase-js compat, `pydantic` for pydantic models, `package` for Go |
+| `lint_schema` | Missing primary keys, unindexed foreign keys, duplicate/redundant/unused indexes, bloat - project or preview | read-only |
 | `list_tables` | List tables and views | read-only |
 | `get_table_rows` | Read rows from a table | read-only |
-| `get_observability` | Live metrics: connections, size, active/slow queries, alerts | read-only |
+| `get_observability` | Live metrics: connections, size, active/slow queries, alerts, scale-to-zero wake latency | read-only |
 | `get_logs` | Recent database log entries, with severity filter and tail cursor | read-only |
+| `search_logs` | Search archived logs (up to 30 days) by SQLSTATE, severity and text | read-only; 503 where log search is not enabled |
 | `list_alerts` | Open + recently resolved project alerts (storage, connections, backups, health advisories) | read-only |
 | `acknowledge_alert` | Mark an alert as seen | idempotent; does not resolve the alert |
 | `get_job` | Poll an async job until `completed`/`failed` | read-only |
@@ -175,6 +191,10 @@ be chosen per project. If the organization has no active plan, the tool fails wi
   existing). Overwriting the project database is irreversible: the control plane refuses it on
   production projects, and on a non-production project it needs an org-wide key or the org admin role
   plus a single-use approval token. It stays in the dashboard, the CLI and the API.
+- **Major upgrade steps need the user's approval.** `upgrade_postgres_major`, `confirm_major_upgrade`
+  and `rollback_major_upgrade` each take a single-use `approval_token`. The control plane mints those
+  only for a person (an org admin in the dashboard) and refuses API keys, so an agent cannot approve its
+  own upgrade or rollback - it can only carry out one the user approved.
 - **K/V flush, rotate-token and delete are not exposed.** A K/V store keeps only a periodic snapshot -
   no backups, no point-in-time recovery - so each of those is one irreversible step away from
   unrecoverable data. They stay in the dashboard and the CLI, behind a confirmation. `create_kv_store`
@@ -183,12 +203,13 @@ be chosen per project. If the organization has no active plan, the tool fails wi
   other tool carries `destructiveHint` - `true` for the ones that delete or overwrite data
   (`delete_preview_database`, `reset_preview_database`, `disable_extension`, `restore`,
   `delete_restore_point`, `import_database`, `destroy_ephemeral_database`, `execute_sql`,
-  `update_backup_schedule`), `false` for the
+  `run_preview_sql`, `update_backup_schedule`, `rotate_app_role`, `sync_integration_env`,
+  `upgrade_postgres_major`, `confirm_major_upgrade`, `rollback_major_upgrade`), `false` for the
   ones that only add - so clients can require approval. Reads and writes never share a tool.
 - Connection-string tools are clearly marked secret-bearing; instruct your agent not to persist their
   output.
-- `execute_sql` executes against the live database. Prefer running risky SQL against a preview created with
-  `create_preview_database` (mode `clone`) and its `get_preview_connection_strings`.
+- `execute_sql` executes against the live database. Prefer rehearsing risky SQL on a preview created with
+  `create_preview_database` (mode `clone`) through `run_preview_sql`.
 - **Credential hygiene:** the device-login key is org-wide, expires after 90 days, and is meant for
   interactive sessions. For long-lived or shared agent setups, create a **project-scoped key** in the
   dashboard and pass it via `CAPYDB_API_KEY` instead. Every key - including agent-minted ones - is listed

@@ -23,6 +23,7 @@
 import { z } from "zod";
 
 import type {
+  AppRoleStatus,
   Backup,
   ConnectionInfo,
   DatabaseSchema,
@@ -36,18 +37,25 @@ import type {
   Job,
   KVCredentials,
   KVStore,
+  LintReport,
+  MajorUpgradeStatus,
+  NotificationPreferences,
   OrganizationUsage,
+  PostgresVersion,
   PreviewDatabase,
   Project,
   ProjectAlert,
   ProjectAuditEvent,
   ProjectExport,
   ProjectExtension,
+  ProjectLogSearch,
   ProjectLogs,
   ProjectObservability,
+  RegionsResponse,
   RestorePoint,
   ScheduledBackup,
   SQLQueryResult,
+  StatusHistoryResponse,
   TableRowsResult,
 } from "./types.js";
 
@@ -83,6 +91,12 @@ export const projectSchema = conforms<Project>()(
     region: z.string(),
     plan: z.string(),
     postgres_version: nullableString,
+    postgres_channel: nullableString.describe(
+      "Release channel of postgres_version: previous, stable, current or beta.",
+    ),
+    postgres_warning: nullableString.describe(
+      "Present only for a major that is not production ready (beta): relay it to the user.",
+    ),
     storage_limit_bytes: z.number(),
     max_connections: z.number(),
     last_error: nullableString,
@@ -108,6 +122,16 @@ export const connectionInfoSchema = conforms<ConnectionInfo>()(
     username: z.string(),
     pooled_url: nullableString.describe("SECRET: embeds the database password."),
     direct_url: nullableString.describe("SECRET: embeds the database password."),
+    app: z
+      .looseObject({
+        username: z.string(),
+        pooled_url: nullableString.describe("SECRET: embeds the app_user password."),
+        direct_url: nullableString.describe("SECRET: embeds the app_user password."),
+      })
+      .nullish()
+      .describe(
+        "The split-role runtime login (app_user), present once enabled: row-level security applies to it.",
+      ),
   }),
 );
 
@@ -123,7 +147,10 @@ export const kvStoreSchema = conforms<KVStore>()(
   z.looseObject({
     id: z.string(),
     project_id: z.string(),
-    state: z.string(),
+    state: z.string().describe("provisioning, running, stopped, error or destroying."),
+    stopped_reason: nullableString.describe(
+      "Present while stopped: org_suspended means the organization is offline for a suspension; the data is kept and the store starts again when it lifts.",
+    ),
     maxmemory_mb: z.number().describe("Storable capacity."),
     mem_max_mb: z.number().describe("Memory ceiling of the cell; NOT usable capacity."),
     maxmemory_policy: z.string(),
@@ -150,6 +177,9 @@ export const ephemeralDatabaseSchema = conforms<EphemeralDatabaseDetails>()(
       expires_at: z.string(),
       name: nullableString,
       region: nullableString,
+      postgres_version: nullableString,
+      postgres_channel: nullableString,
+      postgres_warning: nullableString,
     }),
     connections: connectionInfoSchema.nullish(),
   }),
@@ -171,7 +201,11 @@ export const backupSchema = conforms<Backup>()(
   z.looseObject({
     id: z.string(),
     backup_key: z.string(),
-    state: z.string(),
+    state: z
+      .string()
+      .describe(
+        "completed: restorable. expired: the backup's data is gone from storage; kept as a record, cannot be restored.",
+      ),
     created_at: z.string(),
     size_bytes: nullableNumber,
     label: nullableString,
@@ -305,6 +339,19 @@ export const observabilitySchema = conforms<ProjectObservability>()(
     alerts: z.array(z.string()).nullish(),
     active_queries: z.array(record).nullish(),
     slow_queries: z.array(record).nullish(),
+    wake: z
+      .looseObject({
+        wakes: z.number().describe("Wakes from scale-to-zero in the window."),
+        timed_wakes: nullableNumber,
+        window_hours: nullableNumber,
+        p50_ms: nullableNumber,
+        p95_ms: nullableNumber,
+        max_ms: nullableNumber,
+      })
+      .nullish()
+      .describe(
+        "Scale-to-zero wakes over the window (7 days) and how long they took; percentiles are null when no wake was timed.",
+      ),
   }),
 );
 
@@ -360,7 +407,99 @@ const auditEventSchema = conforms<ProjectAuditEvent>()(
   }),
 );
 
-export const regionsSchema = listOf("regions", z.string());
+export const regionsSchema = conforms<RegionsResponse>()(
+  z.looseObject({
+    regions: z.array(z.string()).describe("Region ids: the value create_project takes."),
+    region_details: z.array(
+      z.looseObject({ id: z.string(), display_name: z.string(), location: nullableString }),
+    ),
+  }),
+);
+
+export const postgresVersionsSchema = listOf(
+  "versions",
+  conforms<PostgresVersion>()(
+    z.looseObject({
+      version: z.string().describe("The value to pass as postgres_version."),
+      channel: z.string().describe("previous, stable, current or beta."),
+      default: z.boolean(),
+      production_ready: z.boolean(),
+    }),
+  ),
+);
+
+export const majorUpgradeStatusSchema = z.looseObject({
+  upgrade: conforms<MajorUpgradeStatus>()(
+    z.looseObject({
+      from_major: z.string(),
+      to_major: z.string(),
+      state: z.string().describe("staging, rollback_available, confirming or rolling_back."),
+      rollback_available_until: nullableString.describe(
+        "When rollback and confirm stop being accepted; absent until the cutover.",
+      ),
+      created_at: z.string(),
+      updated_at: z.string(),
+    }),
+  )
+    .nullable()
+    .describe("Null when no major upgrade is in flight."),
+});
+
+export const appRoleSchema = conforms<AppRoleStatus>()(
+  z.looseObject({
+    available: z.boolean(),
+    enabled: z.boolean(),
+    username: nullableString,
+    created_at: nullableString,
+    rotated_at: nullableString,
+  }),
+);
+
+export const lintSchema = conforms<LintReport>()(
+  z.looseObject({
+    findings: z.array(
+      z.looseObject({
+        rule: z.string(),
+        severity: z.string().describe("warning or info."),
+        object: z.string(),
+        message: z.string(),
+        fix: nullableString.describe(
+          "A statement to review and run yourself; never applied for you.",
+        ),
+      }),
+    ),
+    skipped: z.array(z.string()),
+  }),
+);
+
+export const notificationPreferencesSchema = conforms<NotificationPreferences>()(
+  z.looseObject({
+    organization_id: z.string(),
+    alert_emails_enabled: z.boolean(),
+    alert_email_recipients: z.array(z.string()),
+    billing_email_recipients: z.array(z.string()),
+    updated_at: nullableString.describe("Null while the organization is on the defaults."),
+  }),
+);
+
+export const logSearchSchema = conforms<ProjectLogSearch>()(
+  z.looseObject({
+    entries: z.array(record),
+    next_cursor: nullableString,
+    truncated: z.boolean(),
+  }),
+);
+
+export const statusHistorySchema = conforms<StatusHistoryResponse>()(
+  z.looseObject({
+    days: z.number(),
+    from: z.string(),
+    to: z.string(),
+    generated_at: z.string(),
+    regions: z.array(record),
+    incidents: z.array(record),
+  }),
+);
 export const projectsSchema = listOf("projects", projectSchema);
 export const kvStoresSchema = listOf("kv_stores", kvStoreSchema);
 export const previewDatabasesSchema = listOf("preview_databases", previewDatabaseSchema);

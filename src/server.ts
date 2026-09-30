@@ -30,14 +30,15 @@ export function createCapyDBServer(
 ): McpServer {
   const instructions = [
     "CapyDB is managed Postgres. Cross-tool conventions:",
-    "- Mutating tools (create_preview_database, create_backup, restore, import_database, extension changes) return a job: poll get_job until its state is completed or failed.",
+    "- Mutating tools (create_preview_database, create_backup, restore, import_database, extension changes, app role, integration re-sync, major upgrade steps) return a job: poll get_job until its state is completed or failed.",
+    "- Major upgrade steps need a single-use approval_token that only the user can mint in the CapyDB dashboard: ask for it, never invent one.",
     ...(options.deviceLogin
       ? [
           "- If a tool result carries a device-login approval URL, relay that URL to the user, wait for their approval, then retry the tool.",
         ]
       : []),
-    `- create_ephemeral_database, get_ephemeral_database and destroy_ephemeral_database need no account${options.deviceLogin ? " and never trigger the device login" : ""}: use them when the user wants a throwaway database right now. It is destroyed after 72 hours unless claim_ephemeral_database attaches it to their organization; when the user is done with it, destroy_ephemeral_database ends it early and frees its slot.`,
-    "- Use query_sql for statements that only read; execute_sql is for statements that change data or schema.",
+    `- create_ephemeral_database, get_ephemeral_database and destroy_ephemeral_database need no account${options.deviceLogin ? " and never trigger the device login" : ""} (nor does get_status_history): use them when the user wants a throwaway database right now. It is destroyed after 72 hours unless claim_ephemeral_database attaches it to their organization; when the user is done with it, destroy_ephemeral_database ends it early and frees its slot.`,
+    "- Use query_sql for statements that only read; execute_sql is for statements that change data or schema; run_preview_sql rehearses a statement on a preview database first.",
     "- Before destructive SQL, an import, or a restore into an existing preview, call create_restore_point first so the change is reversible.",
     "- Connection-string results embed live database credentials: never log them or write them into files, commits, or summaries.",
   ];
