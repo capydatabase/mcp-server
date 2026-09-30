@@ -303,6 +303,11 @@ export class AuthManager implements ToolAuth {
     }
   }
 
+  /** The key already at hand (env, CLI config or a finished login), without starting a login. */
+  currentKey(): string | undefined {
+    return this.cachedKey;
+  }
+
   /** The key for the current request. Only valid after ensure() returned ok. */
   apiKey(): string {
     if (this.cachedKey === undefined) {

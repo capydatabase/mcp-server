@@ -148,6 +148,8 @@ export function createCapyDBHttpHandler(options: CapyDBHttpOptions): CapyDBHttpH
           if (token === undefined) throw new Error("CapyDB MCP request has no access token");
           return token;
         },
+        // Checked against the control plane above, so it is a live key when present.
+        peekApiKey: () => token,
       });
       return createCapyDBServer(client, new BearerAuth(token), {
         deviceLogin: false,

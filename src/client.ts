@@ -7,6 +7,7 @@
  */
 
 import type {
+  AppRoleStatus,
   Backup,
   ConnectionInfo,
   CreateImportRequest,
@@ -14,6 +15,7 @@ import type {
   CreateProjectRequest,
   CreateRestorePointRequest,
   CreateRestoreRequest,
+  CreateRestoreResponse,
   DatabaseSchema,
   DatabaseTable,
   EphemeralDatabaseCreateRequest,
@@ -25,7 +27,12 @@ import type {
   Job,
   KVCredentials,
   KVStore,
+  LintReport,
+  MajorUpgradeStatus,
+  NotificationPreferences,
   OrganizationUsage,
+  PostgresVersion,
+  PutNotificationPreferencesRequest,
   PreviewDatabase,
   Project,
   ProjectAlert,
@@ -34,6 +41,7 @@ import type {
   IndexHygieneReport,
   ProjectExport,
   ProjectExtension,
+  ProjectLogSearch,
   ProjectLogs,
   ProjectObservability,
   RegionsResponse,
@@ -41,6 +49,7 @@ import type {
   ScheduledBackup,
   SQLQueryRequest,
   SQLQueryResult,
+  StatusHistoryResponse,
   TableRowsResult,
   UpdateProjectRequest,
   UpsertScheduledBackupRequest,
@@ -91,6 +100,13 @@ export interface CapyDBClientOptions {
    * key can arrive after startup via the first-run device login.
    */
   getApiKey: () => string;
+  /**
+   * The API key when one is already at hand, without starting a login. Calls
+   * that work anonymously but count against the caller's account when signed in
+   * (the ephemeral-database create) send it when present. Omit it and those
+   * calls are always anonymous.
+   */
+  peekApiKey?: () => string | undefined;
   /** Control plane base URL. Defaults to the hosted bridge. */
   baseUrl?: string;
   /**
@@ -109,21 +125,52 @@ interface RequestOptions {
    * (and without) a device login, which `getApiKey()` would otherwise demand.
    */
   anonymous?: boolean;
+  /**
+   * Send the key from `peekApiKey` when there is one, and nothing otherwise;
+   * never starts a login. A key the control plane refuses (a stale saved CLI
+   * credential) is dropped and the call repeated anonymously, because the
+   * endpoint works without one and a stale key must not break it.
+   */
+  optionalAuth?: boolean;
   headers?: Record<string, string>;
 }
 
 export class CapyDBClient {
   private readonly getApiKey: () => string;
+  private readonly peekApiKey: () => string | undefined;
   private readonly baseUrl: string;
   private readonly headers: Record<string, string>;
 
   constructor(options: CapyDBClientOptions) {
     this.getApiKey = options.getApiKey;
+    this.peekApiKey = options.peekApiKey ?? (() => undefined);
     this.baseUrl = (options.baseUrl ?? DEFAULT_API_URL).replace(/\/+$/, "");
     this.headers = options.headers ?? {};
   }
 
   private async request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
+    if (options.optionalAuth === true) {
+      const key = this.peekApiKey();
+      if (key === undefined) {
+        return await this.send<T>(method, path, { ...options, anonymous: true });
+      }
+      try {
+        return await this.send<T>(method, path, {
+          ...options,
+          headers: { ...options.headers, authorization: `Bearer ${key}` },
+          anonymous: true,
+        });
+      } catch (error) {
+        if (error instanceof CapyDBApiError && error.status === 401) {
+          return await this.send<T>(method, path, { ...options, anonymous: true });
+        }
+        throw error;
+      }
+    }
+    return await this.send<T>(method, path, options);
+  }
+
+  private async send<T>(method: string, path: string, options: RequestOptions): Promise<T> {
     const url = new URL(this.baseUrl + path);
     for (const [key, value] of Object.entries(options.query ?? {})) {
       if (value !== undefined) url.searchParams.set(key, String(value));
@@ -162,9 +209,29 @@ export class CapyDBClient {
 
   // ---- Regions ---------------------------------------------------------------
 
-  async listRegions(): Promise<string[]> {
+  async listRegions(): Promise<RegionsResponse> {
     const data = await this.request<RegionsResponse>("GET", "/v1/regions");
-    return data.regions ?? [];
+    return { regions: data.regions ?? [], region_details: data.region_details ?? [] };
+  }
+
+  /** Postgres majors open for new databases, oldest first, with their release channel. */
+  async listPostgresVersions(): Promise<PostgresVersion[]> {
+    const data = await this.request<{ versions: PostgresVersion[] | null }>(
+      "GET",
+      "/v1/postgres-versions",
+    );
+    return data.versions ?? [];
+  }
+
+  // ---- Public status ---------------------------------------------------------
+
+  /** Per-region daily uptime and incidents. Public: no credential is needed. */
+  async getStatusHistory(days?: number): Promise<StatusHistoryResponse> {
+    const data = await this.request<StatusHistoryResponse>("GET", "/status/history", {
+      query: { days },
+      optionalAuth: true,
+    });
+    return { ...data, regions: data.regions ?? [], incidents: data.incidents ?? [] };
   }
 
   // ---- Projects ------------------------------------------------------------
@@ -218,6 +285,79 @@ export class CapyDBClient {
     return data.audit_events ?? [];
   }
 
+  /**
+   * Re-runs provisioning for a project whose provisioning failed. Returns the
+   * job already in flight when there is one; 409 when the project is not a
+   * failed provisioning.
+   */
+  async retryProvisioning(projectId: string): Promise<Job> {
+    const data = await this.request<{ job: Job }>(
+      "POST",
+      `/v1/projects/${encodeURIComponent(projectId)}/retry-provisioning`,
+    );
+    return data.job;
+  }
+
+  async getNotificationPreferences(organizationId: string): Promise<NotificationPreferences> {
+    const data = await this.request<{ notification_preferences: NotificationPreferences }>(
+      "GET",
+      `/v1/organizations/${encodeURIComponent(organizationId)}/notification-preferences`,
+    );
+    return withNotificationLists(data.notification_preferences);
+  }
+
+  /** Replaces the preferences as a whole (PUT semantics: every field is required). */
+  async putNotificationPreferences(
+    organizationId: string,
+    body: PutNotificationPreferencesRequest,
+  ): Promise<NotificationPreferences> {
+    const data = await this.request<{ notification_preferences: NotificationPreferences }>(
+      "PUT",
+      `/v1/organizations/${encodeURIComponent(organizationId)}/notification-preferences`,
+      { body },
+    );
+    return withNotificationLists(data.notification_preferences);
+  }
+
+  /**
+   * Queues a push of the project's connection env vars to a connected
+   * deployment platform. 404 when that integration is not connected, 409 while
+   * a push for it is already queued or running.
+   */
+  async syncIntegrationEnv(projectId: string, provider: string): Promise<Job> {
+    const data = await this.request<{ job: Job }>(
+      "POST",
+      `/v1/projects/${encodeURIComponent(projectId)}/integrations/${encodeURIComponent(provider)}/sync`,
+    );
+    return data.job;
+  }
+
+  // ---- App role (split role model) ------------------------------------------
+
+  async getAppRole(projectId: string): Promise<AppRoleStatus> {
+    const data = await this.request<{ app_role: AppRoleStatus }>(
+      "GET",
+      `/v1/projects/${encodeURIComponent(projectId)}/roles/app`,
+    );
+    return data.app_role;
+  }
+
+  async enableAppRole(projectId: string): Promise<Job> {
+    const data = await this.request<{ job: Job }>(
+      "POST",
+      `/v1/projects/${encodeURIComponent(projectId)}/roles/app`,
+    );
+    return data.job;
+  }
+
+  async rotateAppRole(projectId: string): Promise<Job> {
+    const data = await this.request<{ job: Job }>(
+      "POST",
+      `/v1/projects/${encodeURIComponent(projectId)}/roles/app/rotate`,
+    );
+    return data.job;
+  }
+
   async getProjectConnections(projectId: string): Promise<ConnectionInfo> {
     const data = await this.request<{ connections: ConnectionInfo }>(
       "GET",
@@ -231,7 +371,7 @@ export class CapyDBClient {
   async createEphemeralDatabase(
     body: EphemeralDatabaseCreateRequest,
   ): Promise<EphemeralDatabaseCreated> {
-    return await this.request("POST", "/v1/ephemeral-databases", { body, anonymous: true });
+    return await this.request("POST", "/v1/ephemeral-databases", { body, optionalAuth: true });
   }
 
   /** The claim token travels in a header so it never lands in access logs. */
@@ -298,6 +438,19 @@ export class CapyDBClient {
       `/v1/preview-databases/${encodeURIComponent(previewId)}`,
     );
     return data.job;
+  }
+
+  /**
+   * Runs a statement against a preview database. Tagged like `runSql`; unlike
+   * the project runner, the control plane does not record it in SQL history.
+   */
+  async runPreviewSql(previewId: string, body: SQLQueryRequest): Promise<SQLQueryResult> {
+    const data = await this.request<{ result: SQLQueryResult }>(
+      "POST",
+      `/v1/preview-databases/${encodeURIComponent(previewId)}/sql`,
+      { body: { ...body, query: tagQuery(body.query) } },
+    );
+    return data.result;
   }
 
   async getPreviewConnections(previewId: string): Promise<ConnectionInfo> {
@@ -429,13 +582,45 @@ export class CapyDBClient {
     return data.job;
   }
 
-  async createRestore(projectId: string, body: CreateRestoreRequest): Promise<Job> {
+  /** The restore job, plus `pitr` (requested and effective target) for a point-in-time restore. */
+  /** The major upgrade in flight, or null when there is none. */
+  async getMajorUpgradeStatus(projectId: string): Promise<MajorUpgradeStatus | null> {
+    const data = await this.request<{ upgrade: MajorUpgradeStatus | null }>(
+      "GET",
+      `/v1/projects/${encodeURIComponent(projectId)}/upgrade/major`,
+    );
+    return data.upgrade ?? null;
+  }
+
+  /**
+   * Starts, confirms or rolls back a major upgrade. Each step takes its own
+   * single-use approval token, which only a person can mint (dashboard, org
+   * admin); presenting a consumed token returns the job it already started.
+   */
+  async majorUpgradeStep(
+    projectId: string,
+    step: "upgrade" | "confirm" | "rollback",
+    approvalToken: string,
+    targetMajor?: number,
+  ): Promise<Job> {
+    const suffix = step === "upgrade" ? "" : `/${step}`;
     const data = await this.request<{ job: Job }>(
+      "POST",
+      `/v1/projects/${encodeURIComponent(projectId)}/upgrade/major${suffix}`,
+      { query: { target_major: targetMajor, approval_token: approvalToken } },
+    );
+    return data.job;
+  }
+
+  async createRestore(
+    projectId: string,
+    body: CreateRestoreRequest,
+  ): Promise<CreateRestoreResponse> {
+    return await this.request<CreateRestoreResponse>(
       "POST",
       `/v1/projects/${encodeURIComponent(projectId)}/restores`,
       { body },
     );
-    return data.job;
   }
 
   async createImport(projectId: string, body: CreateImportRequest): Promise<Job> {
@@ -559,6 +744,30 @@ export class CapyDBClient {
     };
   }
 
+  /**
+   * Searches the archived logs, newest first. 503 where log search is not
+   * enabled.
+   */
+  async searchProjectLogs(
+    projectId: string,
+    options: {
+      sqlstate?: string;
+      severity?: string;
+      q?: string;
+      since?: string;
+      until?: string;
+      limit?: number;
+      cursor?: string;
+    } = {},
+  ): Promise<ProjectLogSearch> {
+    const data = await this.request<{ search: ProjectLogSearch }>(
+      "GET",
+      `/v1/projects/${encodeURIComponent(projectId)}/logs/search`,
+      { query: { ...options } },
+    );
+    return { ...data.search, entries: data.search.entries ?? [] };
+  }
+
   async getProjectLogs(
     projectId: string,
     options: { hours?: number; severity?: string; limit?: number; cursor?: string } = {},
@@ -628,28 +837,43 @@ export class CapyDBClient {
 
   async generateProjectSchemaTypes(
     projectId: string,
-    language?: string,
-    style?: string,
+    options: TypegenOptions = {},
   ): Promise<GeneratedTypes> {
     const data = await this.request<{ types: GeneratedTypes }>(
       "GET",
       `/v1/projects/${encodeURIComponent(projectId)}/schema/types`,
-      { query: { language, style } },
+      { query: { ...options } },
     );
     return data.types;
   }
 
   async generatePreviewSchemaTypes(
     previewId: string,
-    language?: string,
-    style?: string,
+    options: TypegenOptions = {},
   ): Promise<GeneratedTypes> {
     const data = await this.request<{ types: GeneratedTypes }>(
       "GET",
       `/v1/preview-databases/${encodeURIComponent(previewId)}/schema/types`,
-      { query: { language, style } },
+      { query: { ...options } },
     );
     return data.types;
+  }
+
+  /** Schema and index lint of the project database (read-only catalog queries). */
+  async lintProject(projectId: string): Promise<LintReport> {
+    const data = await this.request<{ lint: LintReport }>(
+      "GET",
+      `/v1/projects/${encodeURIComponent(projectId)}/lint`,
+    );
+    return withLintLists(data.lint);
+  }
+
+  async lintPreview(previewId: string): Promise<LintReport> {
+    const data = await this.request<{ lint: LintReport }>(
+      "GET",
+      `/v1/preview-databases/${encodeURIComponent(previewId)}/lint`,
+    );
+    return withLintLists(data.lint);
   }
 
   // ---- Restore points --------------------------------------------------------
@@ -716,6 +940,26 @@ export class CapyDBClient {
       `/v1/projects/${encodeURIComponent(projectId)}/kv/credentials`,
     );
   }
+}
+
+/** Query parameters of the two type-generation endpoints. */
+export interface TypegenOptions {
+  language?: string;
+  style?: string;
+  /** Go package clause (language go). */
+  package?: string;
+}
+
+function withLintLists(lint: LintReport): LintReport {
+  return { ...lint, findings: lint.findings ?? [], skipped: lint.skipped ?? [] };
+}
+
+function withNotificationLists(preferences: NotificationPreferences): NotificationPreferences {
+  return {
+    ...preferences,
+    alert_email_recipients: preferences.alert_email_recipients ?? [],
+    billing_email_recipients: preferences.billing_email_recipients ?? [],
+  };
 }
 
 /** The control plane returns `{ "error": "<message>" }` for failures. */
