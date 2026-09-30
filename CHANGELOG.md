@@ -37,6 +37,7 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ### Changed
 
+- Dev tooling: lefthook ^2.1.15.
 - `list_regions` returns `{ regions, region_details }`: the neutral region ids (`eu-north-1`) and, in
   the same order, their display name and location. The description says `hel1` is only a deprecated
   alias.
