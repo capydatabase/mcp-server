@@ -6,6 +6,8 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-09-30
+
 ### Added
 
 - `list_postgres_versions`: the Postgres majors open for new databases with their channel (previous,
@@ -56,12 +58,6 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 No user-facing changes: the release only raised the `@capydb/sdk` dev dependency (types only, not
 shipped) to ^1.21.0.
-
-## [2.2.0] - 2026-09-29` in `CHANGELOG.md`.
-
-`git log v2.2.0..HEAD` shows only one commit since then (apart from the merge):
-
-- `ed0f9a2` updates `@capydb/sdk` from ^1.20.0 to ^1.21.0. That package is a dev dependency used only for types, so it doesn't ship in the package and your rules leave it out.
 
 ## [2.2.0] - 2026-09-29
 

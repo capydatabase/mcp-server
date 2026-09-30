@@ -174,8 +174,8 @@ importers:
         version: 4.6.5
     devDependencies:
       '@capydb/sdk':
-        specifier: ^1.21.0
-        version: 1.21.0
+        specifier: ^1.22.0
+        version: 1.22.0
       '@commitlint/cli':
         specifier: ^21.2.3
         version: 21.2.3(@types/node@26.6.3)(conventional-commits-parser@7.1.2)(typescript@7.1.0-dev.20260929.1)
@@ -211,8 +211,8 @@ packages:
     resolution: {integrity: sha512-qehxGkRj55h/ff8EMaJ+cYhyaKlHIxqYDn682wQD7RNp9UujOQsHog2uS0r2vzr4pW+sXf90NeeayjcNaX3fFg==}
     engines: {node: '>=6.9.0'}
 
-  '@capydb/sdk@1.21.0':
-    resolution: {integrity: sha512-i0NQpXZdSLOA67QC8ZC/A9XVEG8Y0Ji6fYrhvemrQmP2ZtMKz+r+OyosGu0GKMQSYMhngZ/Yh2e2qO2eVYu3RA==}
+  '@capydb/sdk@1.22.0':
+    resolution: {integrity: sha512-PcrC4eSpPW9Kp3u4mkxtc+/xkCxrgkyKHA/Byl1rcUWXmck+ybDx6AcaOGlV6/EJIdzaY5Vj4ITPk71sgQILRg==}
     engines: {node: '>=24.21.0'}
 
   '@commitlint/cli@21.2.3':
@@ -1279,7 +1279,7 @@ snapshots:
 
   '@babel/helper-validator-identifier@7.29.7': {}
 
-  '@capydb/sdk@1.21.0': {}
+  '@capydb/sdk@1.22.0': {}
 
   '@commitlint/cli@21.2.3(@types/node@26.6.3)(conventional-commits-parser@7.1.2)(typescript@7.1.0-dev.20260929.1)':
     dependencies:
