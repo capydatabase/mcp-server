@@ -36,23 +36,23 @@
     "prepare": "if git rev-parse --git-dir >/dev/null 2>&1; then lefthook install; else echo 'no git repository - skipping lefthook install'; fi"
   },
   "dependencies": {
-    "@modelcontextprotocol/server": "^2.2.0",
-    "zod": "^4.6.5"
+    "@modelcontextprotocol/server": "^2.3.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@capydb/sdk": "^1.22.0",
-    "@commitlint/cli": "^21.2.3",
-    "@commitlint/config-conventional": "^21.2.3",
-    "@types/node": "^26.6.3",
-    "lefthook": "^2.1.15",
-    "oxfmt": "0.71.0",
-    "oxlint": "1.86.0",
-    "tsdown": "0.23.0",
+    "@capydb/sdk": "^1.23.2",
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "@types/node": "^26.6.5",
+    "lefthook": "^2.2.2",
+    "oxfmt": "^0.74.0",
+    "oxlint": "^1.89.0",
+    "tsdown": "0.23.1",
     "typescript": "next"
   },
-  "packageManager": "pnpm@11.28.2",
+  "packageManager": "pnpm@11.28.7",
   "engines": {
-    "node": ">=24.21.0"
+    "node": ">=24.22.1"
   },
   "publishConfig": {
     "access": "public"
