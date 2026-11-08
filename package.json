@@ -1,6 +1,6 @@
 {
   "name": "@capydb/mcp",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "Official CapyDB MCP server - managed Postgres projects, preview databases, backups, restores, and SQL for AI agents.",
   "keywords": [
     "capydb",
@@ -36,23 +36,23 @@
     "prepare": "if git rev-parse --git-dir >/dev/null 2>&1; then lefthook install; else echo 'no git repository - skipping lefthook install'; fi"
   },
   "dependencies": {
-    "@modelcontextprotocol/server": "^2.3.1",
+    "@modelcontextprotocol/server": "^2.4.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@capydb/sdk": "^1.23.2",
     "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^21.2.4",
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "lefthook": "^2.2.2",
-    "oxfmt": "^0.74.0",
-    "oxlint": "^1.89.0",
-    "tsdown": "0.23.1",
+    "oxfmt": "^0.77.0",
+    "oxlint": "^1.92.0",
+    "tsdown": "0.23.7",
     "typescript": "next"
   },
-  "packageManager": "pnpm@11.28.7",
+  "packageManager": "pnpm@11.28.11",
   "engines": {
-    "node": ">=24.22.1"
+    "node": ">=24.22.2"
   },
   "publishConfig": {
     "access": "public"
