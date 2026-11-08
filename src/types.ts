@@ -84,5 +84,48 @@ export type {
 
 import type { ProjectConnectionInfo } from "@capydb/sdk";
 
+/**
+ * One distinct failure in a log window, from `GET /v1/projects/{id}/logs/errors`
+ * (`ProjectLogErrorGroup` in the control plane's OpenAPI document). Declared
+ * here until the published `@capydb/sdk` is regenerated from that document;
+ * move it into the re-export list above then.
+ */
+export type ProjectLogErrorGroup = {
+  key: string;
+  /** Five-character SQLSTATE shared by the group; absent for lines without one. */
+  sqlstate?: string;
+  /** SQLSTATE class name (data_exception, integrity_constraint_violation, ...). */
+  class?: string;
+  /** True when the condition is transient by its class and worth one retry. */
+  retryable: boolean;
+  severity: "error" | "fatal" | "panic";
+  /** Occurrences among the scanned lines (a lower bound when truncated). */
+  count: number;
+  /** Distinct exact messages the group folds together. */
+  variants: number;
+  first_seen: string;
+  last_seen: string;
+  /** The newest occurrence's exact message. */
+  message: string;
+  /** The newest occurrence's STATEMENT line(s), when Postgres logged them. */
+  statement?: string;
+  detail?: string;
+  hint?: string;
+  /** e.g. which parameter of a batch carried the bad value. */
+  context?: string;
+  user?: string;
+  database?: string;
+};
+
+/** The error-class lines of one log window, grouped busiest first. */
+export type ProjectLogErrors = {
+  groups: ProjectLogErrorGroup[];
+  since: string;
+  scanned: number;
+  occurrences: number;
+  /** True when the line cap was reached: every count is a lower bound. */
+  truncated: boolean;
+};
+
 /** Connection endpoints for a project or a preview database - one shape for both. */
 export type ConnectionInfo = ProjectConnectionInfo;

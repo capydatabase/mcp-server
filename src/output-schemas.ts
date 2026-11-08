@@ -49,6 +49,7 @@ import type {
   ProjectExport,
   ProjectExtension,
   ProjectLogSearch,
+  ProjectLogErrors,
   ProjectLogs,
   ProjectObservability,
   RegionsResponse,
@@ -361,6 +362,43 @@ export const logsSchema = conforms<ProjectLogs>()(
     next_cursor: nullableString,
   }),
 );
+
+export const logErrorsSchema = conforms<ProjectLogErrors>()(
+  z.looseObject({
+    groups: z.array(
+      z.looseObject({
+        key: z.string(),
+        sqlstate: nullableString,
+        class: nullableString,
+        retryable: z.boolean(),
+        severity: z.string(),
+        count: z.number(),
+        variants: z.number(),
+        first_seen: z.string(),
+        last_seen: z.string(),
+        message: z.string(),
+        statement: nullableString,
+        detail: nullableString,
+        hint: nullableString,
+        context: nullableString,
+        user: nullableString,
+        database: nullableString,
+      }),
+    ),
+    since: z.string(),
+    scanned: z.number(),
+    occurrences: z.number(),
+    truncated: z.boolean(),
+  }),
+);
+
+export const explainSchema = z.looseObject({
+  plan: z.string().describe("The EXPLAIN output, one plan line per text line."),
+  summary: z
+    .string()
+    .describe("The top node's estimated cost, rows and width, from the first plan line."),
+  duration_ms: nullableNumber,
+});
 
 const alertSchema = conforms<ProjectAlert>()(
   z.looseObject({

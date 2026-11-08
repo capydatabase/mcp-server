@@ -172,6 +172,8 @@ For headless/CI, add `"env": { "CAPYDB_API_KEY": "capy_..." }` to the server ent
 | `get_observability` | Live metrics: connections, size, active/slow queries, alerts, scale-to-zero wake latency | read-only |
 | `get_logs` | Recent database log entries, with severity filter and tail cursor | read-only |
 | `search_logs` | Search archived logs (up to 30 days) by SQLSTATE, severity and text | read-only; 503 where log search is not enabled |
+| `get_recent_errors` | Recent ERROR/FATAL/PANIC lines grouped by SQLSTATE + message, each with the failing statement and a retryable verdict | read-only; call first when a job or query fails |
+| `explain_query` | The planner's plan for one statement (EXPLAIN without ANALYZE) | read-only (`READ ONLY` transaction); refuses ANALYZE and multi-statement input |
 | `list_alerts` | Open + recently resolved project alerts (storage, connections, backups, health advisories) | read-only |
 | `acknowledge_alert` | Mark an alert as seen | idempotent; does not resolve the alert |
 | `get_job` | Poll an async job until `completed`/`failed` | read-only |

@@ -41,6 +41,7 @@ import type {
   IndexHygieneReport,
   ProjectExport,
   ProjectExtension,
+  ProjectLogErrors,
   ProjectLogSearch,
   ProjectLogs,
   ProjectObservability,
@@ -785,6 +786,23 @@ export class CapyDBClient {
       },
     );
     return { ...data.logs, entries: data.logs.entries ?? [] };
+  }
+
+  /**
+   * The error-class lines of one log window folded into groups (SQLSTATE +
+   * normalised message), busiest first, each with the newest occurrence's
+   * statement and a retryable verdict.
+   */
+  async getProjectLogErrors(
+    projectId: string,
+    options: { hours?: number; limit?: number } = {},
+  ): Promise<ProjectLogErrors> {
+    const data = await this.request<{ errors: ProjectLogErrors }>(
+      "GET",
+      `/v1/projects/${encodeURIComponent(projectId)}/logs/errors`,
+      { query: { hours: options.hours, limit: options.limit } },
+    );
+    return { ...data.errors, groups: data.errors.groups ?? [] };
   }
 
   async listProjectAlerts(projectId: string): Promise<ProjectAlert[]> {

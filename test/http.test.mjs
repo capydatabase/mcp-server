@@ -498,6 +498,8 @@ test("the new tools are listed with the right hints", async () => {
     "get_app_role",
     "lint_schema",
     "search_logs",
+    "get_recent_errors",
+    "explain_query",
     "get_notification_preferences",
     "get_status_history",
   ]) {
@@ -798,6 +800,117 @@ test("search_logs forwards filters and reports a disabled search as a tool error
   const disabled = await callTool("search_logs", { project_id: "prj_1" });
   assert.equal(disabled.isError, true);
   assert.match(disabled.content[0].text, /HTTP 503/);
+});
+
+test("get_recent_errors forwards the window and returns the grouped errors", async () => {
+  route("GET /v1/projects/prj_1/logs/errors", ({ query }) => {
+    assert.equal(query.get("hours"), "6");
+    assert.equal(query.has("limit"), false);
+    return [
+      200,
+      {
+        errors: {
+          groups: [
+            {
+              key: "22008:date/time field value out of range: ?",
+              sqlstate: "22008",
+              class: "data_exception",
+              retryable: false,
+              severity: "error",
+              count: 25,
+              variants: 1,
+              first_seen: "2026-11-08T13:15:18Z",
+              last_seen: "2026-11-08T14:02:13Z",
+              message: 'date/time field value out of range: "1992-10-00"',
+              statement: 'update "games" g set release_year = v.year from (values ($1::int)) as v(id)',
+              context: "unnamed portal parameter $2256 = '...'",
+              user: "usr_x",
+              database: "db_x",
+            },
+          ],
+          since: "2026-11-08T08:00:00Z",
+          scanned: 500,
+          occurrences: 25,
+          truncated: true,
+        },
+      },
+    ];
+  });
+  const result = await callTool("get_recent_errors", { project_id: "prj_1", hours: 6 });
+  assert.notEqual(result.isError, true);
+  assert.equal(result.structuredContent.groups[0].retryable, false);
+  assert.equal(result.structuredContent.truncated, true);
+
+  // A control plane answering groups: null still yields an array.
+  route("GET /v1/projects/prj_1/logs/errors", () => [
+    200,
+    { errors: { groups: null, since: "2026-11-08T08:00:00Z", scanned: 0, occurrences: 0, truncated: false } },
+  ]);
+  const empty = await callTool("get_recent_errors", { project_id: "prj_1" });
+  assert.deepEqual(empty.structuredContent.groups, []);
+});
+
+test("explain_query plans one statement read-only and refuses ANALYZE and multi-statement input", async () => {
+  const bodies = [];
+  route("POST /v1/projects/prj_1/sql", ({ body }) => {
+    bodies.push(body);
+    return [
+      200,
+      {
+        result: {
+          columns: ["QUERY PLAN"],
+          rows: [
+            { "QUERY PLAN": "Seq Scan on source_records  (cost=0.00..31415.92 rows=2075 width=64)" },
+            { "QUERY PLAN": "  Filter: ((payload ->> 'id'::text) = '42'::text)" },
+          ],
+          row_count: 2,
+          truncated: false,
+          duration_ms: 3,
+        },
+      },
+    ];
+  });
+
+  const plain = await callTool("explain_query", {
+    project_id: "prj_1",
+    query: "select * from source_records where payload->>'id' = '42';",
+  });
+  assert.notEqual(plain.isError, true, plain.content?.[0]?.text);
+  assert.match(plain.structuredContent.plan, /^Seq Scan on source_records/);
+  assert.match(plain.structuredContent.summary, /estimated cost 31415\.92 .*2075 rows/);
+  assert.equal(bodies.at(-1).read_only, true);
+  assert.match(bodies.at(-1).query, /^EXPLAIN \(COSTS, VERBOSE false, FORMAT TEXT\) select \* from source_records where payload->>'id' = '42'/);
+  // The trailing semicolon is dropped so the source tag the client appends stays inside the statement.
+  assert.doesNotMatch(bodies.at(-1).query, /'42';/);
+
+  // A caller-supplied EXPLAIN prefix is replaced, not doubled.
+  const prefixed = await callTool("explain_query", {
+    project_id: "prj_1",
+    query: "EXPLAIN (VERBOSE, FORMAT JSON) select 1",
+  });
+  assert.notEqual(prefixed.isError, true);
+  assert.match(bodies.at(-1).query, /^EXPLAIN \(COSTS, VERBOSE false, FORMAT TEXT\) select 1 \/\*source=/);
+
+  const sent = bodies.length;
+  for (const query of [
+    "EXPLAIN ANALYZE select 1",
+    "explain (analyze, buffers) delete from t",
+    "select 1; delete from t",
+    "select ';' ; drop table t",
+    "",
+  ]) {
+    const refused = await callTool("explain_query", { project_id: "prj_1", query });
+    assert.equal(refused.isError, true, query);
+  }
+  // Refusals never reach the control plane.
+  assert.equal(bodies.length, sent);
+
+  // Trailing comments and a trailing semicolon are not a second statement.
+  const trailing = await callTool("explain_query", {
+    project_id: "prj_1",
+    query: "select 'a;b' as x; -- done\n/* nothing */",
+  });
+  assert.notEqual(trailing.isError, true, trailing.content?.[0]?.text);
 });
 
 test("project write tools reach their endpoints", async () => {

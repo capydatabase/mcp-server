@@ -6,13 +6,30 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-11-08
+
+### Added
+
+- `get_recent_errors`: the project database's recent ERROR/FATAL/PANIC lines folded into
+  groups keyed by SQLSTATE plus the normalised message, each with its count, first/last seen,
+  the newest occurrence's STATEMENT/DETAIL/HINT/CONTEXT, the session, the SQLSTATE class name
+  and a `retryable` verdict (connection failures, serialization/deadlock rollbacks, a pausing
+  or resuming cell, too many connections) - so a model stops retrying a data error that fails
+  the same way every time. Backed by the control plane's `GET /v1/projects/{id}/logs/errors`.
+- `explain_query`: the planner's plan for one statement (`EXPLAIN (COSTS, FORMAT TEXT)` inside
+  a READ ONLY transaction). A caller-supplied `EXPLAIN` prefix is stripped; `EXPLAIN ANALYZE`
+  and multi-statement input are refused before anything reaches the control plane.
+
 ### Changed
 
+- `@modelcontextprotocol/server` 2.4.0 (was 2.3.1) and zod 4.6.7 (was 4.6.5).
 - Dev tooling: `typescript@next` 7.1.0-dev.20260930.4 (was 7.1.0-dev.20260929.1).
-- `@modelcontextprotocol/server` 2.3.1 (was 2.2.0) and zod 4.6.7 (was 4.6.5).
-- Dev tooling: `@capydb/sdk` 1.23.2 (types only), oxlint 1.89.0, oxfmt 0.74.0, tsdown 0.23.1,
-  lefthook 2.2.2, commitlint 21.2.4, `@types/node` 26.6.5 and `typescript@next`
-  7.1.0-dev.20261022.1; `packageManager` is `pnpm@11.28.7` and `engines.node` is `>=24.22.1`.
+- Dev tooling: `@capydb/sdk` 1.23.2 (types only), oxlint 1.92.0, oxfmt 0.77.0, tsdown 0.23.7,
+  lefthook 2.2.2, commitlint 21.2.4, `@types/node` 26.6.6 and `typescript@next`
+  7.1.0-dev.20261022.1; `packageManager` is `pnpm@11.28.11` and `engines.node` is `>=24.22.2`.
+- The two new response shapes (`ProjectLogErrors`, `ProjectLogErrorGroup`) are declared in
+  `src/types.ts` until the published `@capydb/sdk` is regenerated from the control plane's
+  OpenAPI document; they move to the SDK re-export then.
 
 ## [2.4.0] - 2026-09-30
 
