@@ -6,6 +6,30 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-11-08
+
+### Added
+
+- `list_postgres_versions`: the Postgres majors open for new databases with their channel (previous, stable, current, beta), the default and whether each is production ready. `create_project` and `create_ephemeral_database` accept `postgres_version` `"19"` while the control plane offers the beta. ([c5c2b13](https://github.com/capydatabase/mcp-server/commit/c5c2b13))
+- Self-serve major upgrades: `get_upgrade_status` (the upgrade in flight and `rollback_available_until`), and the destructive `upgrade_postgres_major`, `confirm_major_upgrade` and `rollback_major_upgrade`. Each step takes a single-use `approval_token` the user mints in the dashboard; the control plane refuses to mint one for an API key, so an agent can only carry out a step a person approved. `major_upgrade_preflight` now says a passed preflight is valid for an hour. ([c5c2b13](https://github.com/capydatabase/mcp-server/commit/c5c2b13))
+- `retry_provisioning`: provision a project again whose provisioning failed. ([c5c2b13](https://github.com/capydatabase/mcp-server/commit/c5c2b13))
+- Split role model: `get_app_role`, `enable_app_role` and `rotate_app_role` (destructive: the old `app_user` password stops working). `get_connection_strings` describes the `app` connection strings. ([c5c2b13](https://github.com/capydatabase/mcp-server/commit/c5c2b13))
+- `run_preview_sql`: run a statement against a preview database, with `allow_unqualified_writes` for rehearsing a destructive statement there. ([c5c2b13](https://github.com/capydatabase/mcp-server/commit/c5c2b13))
+- `lint_schema`: the schema and index lint report (the same as `capydb db lint --json`) for a project or a preview. ([c5c2b13](https://github.com/capydatabase/mcp-server/commit/c5c2b13))
+- `sync_integration_env`: push the connection env vars to a connected Vercel, Netlify or Cloudflare integration again. ([c5c2b13](https://github.com/capydatabase/mcp-server/commit/c5c2b13))
+- `get_notification_preferences` and `update_notification_preferences`. The update merges the fields you pass onto the current preferences, because the endpoint replaces them as a whole. It requires the `organizations:write` scope, which the remote connector's OAuth grant does not include, so the tool description tells the agent to expect a 403 there and send the user to the dashboard. ([c5c2b13](https://github.com/capydatabase/mcp-server/commit/c5c2b13), [9b571ef](https://github.com/capydatabase/mcp-server/commit/9b571ef))
+- `search_logs`: search up to 30 days of archived logs by SQLSTATE, severity and text. Where log search is not enabled the control plane answers 503, which the tool reports as such. ([c5c2b13](https://github.com/capydatabase/mcp-server/commit/c5c2b13))
+- `get_status_history`: CapyDB's public per-region daily uptime and incidents; works without an account. ([c5c2b13](https://github.com/capydatabase/mcp-server/commit/c5c2b13))
+- `get_recent_errors`: the project database's recent ERROR/FATAL/PANIC lines folded into groups keyed by SQLSTATE plus the normalised message, each with its count, first/last seen, the newest occurrence's STATEMENT/DETAIL/HINT/CONTEXT, the session, the SQLSTATE class name and a `retryable` verdict, so a model stops retrying a data error that fails the same way every time. ([514406e](https://github.com/capydatabase/mcp-server/commit/514406e))
+- `explain_query`: the planner's plan for one statement (`EXPLAIN (COSTS, FORMAT TEXT)` inside a READ ONLY transaction). A caller-supplied `EXPLAIN` prefix is stripped; `EXPLAIN ANALYZE` and multi-statement input are refused before anything reaches the control plane. ([514406e](https://github.com/capydatabase/mcp-server/commit/514406e))
+### Changed
+
+- `restore` returns `{ job, pitr }` instead of the bare job: for a point-in-time restore, `pitr` reports the requested time, the time the restore runs to and whether it was clamped to the latest restorable point. Callers that read the job directly must unwrap it. ([c5c2b13](https://github.com/capydatabase/mcp-server/commit/c5c2b13))
+- `list_regions` returns `{ regions, region_details }`: the neutral region ids (`eu-north-1`) and, in the same order, their display name and location. `hel1` is only a deprecated alias. ([c5c2b13](https://github.com/capydatabase/mcp-server/commit/c5c2b13))
+- `generate_types` accepts `language` `go` (with `package`) and `python` (with `style` `dataclass` or `pydantic`). ([c5c2b13](https://github.com/capydatabase/mcp-server/commit/c5c2b13))
+- `create_ephemeral_database` sends the caller's credential when one is already at hand (the remote server's OAuth token, or the local server's saved key; it never starts a login), so its rate limit and the bound on unclaimed databases count against the caller's organization instead of a shared network address. A saved key the control plane refuses is dropped and the call repeated anonymously. ([c5c2b13](https://github.com/capydatabase/mcp-server/commit/c5c2b13))
+- Output schemas carry the new control-plane fields: `postgres_channel` and `postgres_warning` on projects, `connections.app`, the K/V store `stopped_reason`, the `expired` backup state and the observability `wake` block. ([c5c2b13](https://github.com/capydatabase/mcp-server/commit/c5c2b13))
+
 ## [2.5.0] - 2026-11-08
 
 ### Changed
@@ -406,7 +430,10 @@ Tagged but never published to npm; its changes reach npm with 1.9.0.
   SQL, logs and observability. All diagnostics go to stderr; production-overwrite restore is
   deliberately not exposed as a tool.
 
-[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v2.3.0...HEAD
+[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/capydatabase/mcp-server/compare/v2.5.0...v2.6.0
+[2.5.0]: https://github.com/capydatabase/mcp-server/compare/v2.4.0...v2.5.0
+[2.4.0]: https://github.com/capydatabase/mcp-server/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/capydatabase/mcp-server/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/capydatabase/mcp-server/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/capydatabase/mcp-server/compare/v2.0.0...v2.1.0
