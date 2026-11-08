@@ -40,7 +40,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@capydb/sdk": "^1.23.2",
+    "@capydb/sdk": "^1.25.0",
     "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^21.2.4",
     "@types/node": "^26.6.6",

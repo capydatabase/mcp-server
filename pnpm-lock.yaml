@@ -174,8 +174,8 @@ importers:
         version: 4.6.7
     devDependencies:
       '@capydb/sdk':
-        specifier: ^1.23.2
-        version: 1.23.2
+        specifier: ^1.25.0
+        version: 1.25.0
       '@commitlint/cli':
         specifier: ^21.2.4
         version: 21.2.4(conventional-commits-parser@7.1.4)(typescript@7.1.0-dev.20261108.1)
@@ -211,9 +211,9 @@ packages:
     resolution: {integrity: sha512-qehxGkRj55h/ff8EMaJ+cYhyaKlHIxqYDn682wQD7RNp9UujOQsHog2uS0r2vzr4pW+sXf90NeeayjcNaX3fFg==}
     engines: {node: '>=6.9.0'}
 
-  '@capydb/sdk@1.23.2':
-    resolution: {integrity: sha512-cgh9oQcvcvY53VFygSUQjN99/jPDwZ7zJz3Oa91a69CNGQ3wNurs+3npzQ4fzewyDU0KDaX816V1ZTQWC2smSw==}
-    engines: {node: '>=24.21.0'}
+  '@capydb/sdk@1.25.0':
+    resolution: {integrity: sha512-KCYcFj3NKsmzJpTeyiga5vxwzFOfCGQfFh1+nhDZo1R60SHtI7qL/nNCTHP0WA/VuLR/2TOEkVke8SK2W7maKQ==}
+    engines: {node: '>=24.22.2'}
 
   '@commitlint/cli@21.2.4':
     resolution: {integrity: sha512-g3M/wrQdElqGH5vROIeL2QiYIxrzqUkhCgsDyDlWfKEyQdCt10OyMB28W2cJtpZ+VNGMvmaN923infr1hOfyrg==}
@@ -1196,7 +1196,7 @@ snapshots:
 
   '@babel/helper-validator-identifier@7.29.7': {}
 
-  '@capydb/sdk@1.23.2': {}
+  '@capydb/sdk@1.25.0': {}
 
   '@commitlint/cli@21.2.4(conventional-commits-parser@7.1.4)(typescript@7.1.0-dev.20261108.1)':
     dependencies:

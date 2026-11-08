@@ -8,6 +8,9 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [2.5.0] - 2026-11-08
 
+### Changed
+- `@capydb/sdk` 1.25.0: the `ProjectLogErrors` / `ProjectLogErrorGroup` shapes now come from the published SDK instead of local declarations.
+
 ### Added
 
 - `get_recent_errors`: the project database's recent ERROR/FATAL/PANIC lines folded into
