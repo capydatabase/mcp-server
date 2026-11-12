@@ -6,6 +6,10 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `explain_query`: a `$` inside an identifier (`price$1`, `col$q$`) no longer opens a dollar quote in the multi-statement check, so a second statement after such an identifier is refused and a tag-looking identifier no longer swallows text up to a matching string. Dollar-quote tags may hold digits, block comments nest and `E'...'` strings honour backslash escapes, as in Postgres. (FG-9)
+
 ### Changed
 
 - `packageManager` back to pnpm 11.28.11: Vercel's install refuses pnpm 12.20.0 (`ERR_PNPM_PNPM_ENGINE_IDENTITY_MISMATCH`, invalid registry signature), which failed the 2026-11-12 production builds. Same dependency resolution.

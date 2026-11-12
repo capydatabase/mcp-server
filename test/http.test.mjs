@@ -897,6 +897,8 @@ test("explain_query plans one statement read-only and refuses ANALYZE and multi-
     "explain (analyze, buffers) delete from t",
     "select 1; delete from t",
     "select ';' ; drop table t",
+    // A `$` inside an identifier does not open a dollar quote, so the second statement is seen.
+    "select col$a$ from t; drop table t",
     "",
   ]) {
     const refused = await callTool("explain_query", { project_id: "prj_1", query });
@@ -911,6 +913,17 @@ test("explain_query plans one statement read-only and refuses ANALYZE and multi-
     query: "select 'a;b' as x; -- done\n/* nothing */",
   });
   assert.notEqual(trailing.isError, true, trailing.content?.[0]?.text);
+
+  // Identifiers holding `$` are not dollar-quote tags: a tag-looking piece of one must not swallow
+  // the rest of the text up to a matching string, and a real tag may hold digits.
+  for (const query of [
+    "select a$q$ from t where note = '$q$;'",
+    "select price$1 from t",
+    "select $tag1$;$tag1$ as x",
+  ]) {
+    const accepted = await callTool("explain_query", { project_id: "prj_1", query });
+    assert.notEqual(accepted.isError, true, `${query}: ${accepted.content?.[0]?.text}`);
+  }
 });
 
 test("project write tools reach their endpoints", async () => {

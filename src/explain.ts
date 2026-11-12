@@ -8,6 +8,8 @@
  * the EXPLAIN, so multi-statement input is refused too.
  */
 
+import { isBlank, splitStatements } from "./sql-scan.js";
+
 const EXPLAIN_PREFIX =
   /^\s*explain\b(?:\s*\((?<options>[^)]*)\))?(?:\s+(?<bare>(?:analy[sz]e|verbose)\b\s*)+)?/i;
 
@@ -40,67 +42,11 @@ export function prepareExplainQuery(input: string): string {
   return `EXPLAIN (COSTS, VERBOSE false, FORMAT TEXT) ${query.replace(/;\s*$/, "")}`;
 }
 
-/**
- * True when a `;` outside quotes, dollar-quotes and comments is followed by
- * anything but whitespace or comments.
- */
-export function hasStatementAfterSemicolon(query: string): boolean {
-  let i = 0;
-  const n = query.length;
-  while (i < n) {
-    const ch = query[i];
-    const next = query[i + 1];
-    if (ch === "'" || ch === '"') {
-      i = skipQuoted(query, i, ch);
-      continue;
-    }
-    if (ch === "$") {
-      const tag = /^\$[A-Za-z_]*\$/.exec(query.slice(i));
-      if (tag !== null) {
-        const end = query.indexOf(tag[0], i + tag[0].length);
-        i = end === -1 ? n : end + tag[0].length;
-        continue;
-      }
-    }
-    if (ch === "-" && next === "-") {
-      const end = query.indexOf("\n", i);
-      i = end === -1 ? n : end + 1;
-      continue;
-    }
-    if (ch === "/" && next === "*") {
-      const end = query.indexOf("*/", i + 2);
-      i = end === -1 ? n : end + 2;
-      continue;
-    }
-    if (ch === ";") {
-      return stripTrailingNoise(query.slice(i + 1)) !== "";
-    }
-    i += 1;
-  }
-  return false;
-}
-
-function skipQuoted(query: string, start: number, quote: string): number {
-  let i = start + 1;
-  while (i < query.length) {
-    if (query[i] === quote) {
-      if (query[i + 1] === quote) {
-        i += 2;
-        continue;
-      }
-      return i + 1;
-    }
-    i += 1;
-  }
-  return query.length;
-}
-
-/** Whitespace and comments only → "". */
-function stripTrailingNoise(rest: string): string {
-  return rest
-    .replaceAll(/--[^\n]*/g, "")
-    .replaceAll(/\/\*[\s\S]*?\*\//g, "")
-    .trim();
+/** True when anything but whitespace or comments follows the first top-level `;`. */
+function hasStatementAfterSemicolon(query: string): boolean {
+  return splitStatements(query)
+    .slice(1)
+    .some((statement) => !isBlank(statement));
 }
 
 /** Shapes EXPLAIN's result rows (one `QUERY PLAN` column) into the tool output. */
