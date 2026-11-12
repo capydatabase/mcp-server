@@ -182,6 +182,10 @@ test("an account tool without a token is refused with a 401 challenge", async ()
   );
   assert.match(challenge, /scope="projects:read [^"]*organizations:read"/);
   assert.equal(response.headers.get("access-control-expose-headers")?.includes("www-authenticate"), true);
+  assert.deepEqual(await response.json(), {
+    error: "invalid_token",
+    error_description: "Sign in to CapyDB to use this tool",
+  });
 });
 
 test("an anonymous tool runs without a token", async () => {

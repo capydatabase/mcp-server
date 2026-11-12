@@ -22,7 +22,14 @@
 
 import { isIP } from "node:net";
 
-import { createMcpHandler, type AuthInfo } from "@modelcontextprotocol/server";
+import {
+  bearerAuthChallengeResponse,
+  createMcpHandler,
+  getOAuthProtectedResourceMetadataUrl,
+  OAuthError,
+  OAuthErrorCode,
+  type AuthInfo,
+} from "@modelcontextprotocol/server";
 
 import type { EnsureResult, ToolAuth } from "./auth.js";
 import { CapyDBClient } from "./client.js";
@@ -127,8 +134,7 @@ class BearerAuth implements ToolAuth {
 export function createCapyDBHttpHandler(options: CapyDBHttpOptions): CapyDBHttpHandler {
   const apiUrl = options.apiUrl.replace(/\/+$/, "");
   const resource = new URL(options.resourceUrl);
-  const resourcePath = resource.pathname === "/" ? "" : resource.pathname;
-  const metadataUrl = `${resource.origin}/.well-known/oauth-protected-resource${resourcePath}`;
+  const metadataUrl = getOAuthProtectedResourceMetadataUrl(resource);
   const checkedTokens = new Map<string, number>();
 
   const callerHeaders = (request: Request | undefined): Record<string, string> => {
@@ -189,25 +195,17 @@ export function createCapyDBHttpHandler(options: CapyDBHttpOptions): CapyDBHttpH
     return "valid";
   };
 
-  const challenge = (error?: { code: string; description: string }): Response => {
-    const params = [
-      ...(error === undefined
-        ? []
-        : [`error="${error.code}"`, `error_description="${error.description}"`]),
-      `resource_metadata="${metadataUrl}"`,
-      `scope="${OAUTH_SCOPES.join(" ")}"`,
-    ];
-    const body =
-      error === undefined
-        ? { error: "invalid_token", error_description: "Sign in to CapyDB to use this tool" }
-        : { error: error.code, error_description: error.description };
-    return withCors(
-      Response.json(body, {
-        status: 401,
-        headers: { "www-authenticate": `Bearer ${params.join(", ")}` },
+  /**
+   * The 401 that makes a client start its OAuth flow: `invalid_token` with the
+   * metadata URL and the scopes to ask for in the `WWW-Authenticate` challenge.
+   */
+  const challenge = (description: string): Response =>
+    withCors(
+      bearerAuthChallengeResponse(new OAuthError(OAuthErrorCode.InvalidToken, description), {
+        requiredScopes: [...OAUTH_SCOPES],
+        resourceMetadataUrl: metadataUrl,
       }),
     );
-  };
 
   return {
     async mcp(request) {
@@ -248,13 +246,10 @@ export function createCapyDBHttpHandler(options: CapyDBHttpOptions): CapyDBHttpH
           );
         }
         if (check === "invalid") {
-          return challenge({
-            code: "invalid_token",
-            description: "The access token is expired, revoked or not a CapyDB token",
-          });
+          return challenge("The access token is expired, revoked or not a CapyDB token");
         }
       } else if (hasParsedBody && callsAccountTool(parsedBody)) {
-        return challenge();
+        return challenge("Sign in to CapyDB to use this tool");
       }
 
       const authInfo: AuthInfo | undefined =
