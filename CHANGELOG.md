@@ -6,6 +6,10 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `get_observability` describes and declares the Postgres 19 readings: `generic_plan_calls`/`custom_plan_calls` on each slow query, `lock_waits` and `autovacuum_priority`. All absent for Postgres 16-18 databases.
+
 ### Changed
 
 - `packageManager` back to pnpm 11.28.11: Vercel's install refuses pnpm 12.20.0 (`ERR_PNPM_PNPM_ENGINE_IDENTITY_MISMATCH`, invalid registry signature), which failed the 2026-11-12 production builds. Same dependency resolution.

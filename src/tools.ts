@@ -1739,7 +1739,9 @@ export function registerTools(
       title: "Get live project metrics",
       description:
         "Get a live observability snapshot of the project database: connection usage, database size versus storage limit, active queries, slowest statements (when pg_stat_statements is available), and derived alerts. " +
-        "wake summarizes scale-to-zero over the last 7 days: how often the database was woken (wakes) and how long waking took (p50_ms, p95_ms, max_ms over the timed wakes; null when none was timed) - the delay the first connection after an idle period pays. Setting always_on (update_project_settings) removes it.",
+        "wake summarizes scale-to-zero over the last 7 days: how often the database was woken (wakes) and how long waking took (p50_ms, p95_ms, max_ms over the timed wakes; null when none was timed) - the delay the first connection after an idle period pays. Setting always_on (update_project_settings) removes it. " +
+        "On Postgres 19 databases only (absent on 16-18): each slow query may carry generic_plan_calls and custom_plan_calls - executions on a cached generic plan versus a plan made for the actual parameters; a statement that is slow only sometimes and runs mostly generic may be getting a generic plan that suits some values badly. " +
+        "lock_waits lists, per lock type, waits longer than deadlock_timeout (waits, wait_time_ms) and fast-path overflows (fastpath_exceeded) for the whole server the database runs on, and autovacuum_priority the ten tables autovacuum would reach first (score; do_vacuum, do_analyze, for_wraparound).",
       inputSchema: z.object({
         project_id: z.string().describe("Project id."),
       }),
