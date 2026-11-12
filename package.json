@@ -50,7 +50,7 @@
     "tsdown": "0.23.7",
     "typescript": "next"
   },
-  "packageManager": "pnpm@12.20.0",
+  "packageManager": "pnpm@11.28.11",
   "engines": {
     "node": ">=24.22.2"
   },

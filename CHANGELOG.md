@@ -8,6 +8,7 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ### Changed
 
+- `packageManager` back to pnpm 11.28.11: Vercel's install refuses pnpm 12.20.0 (`ERR_PNPM_PNPM_ENGINE_IDENTITY_MISMATCH`, invalid registry signature), which failed the 2026-11-12 production builds. Same dependency resolution.
 - Dev tooling: oxlint 1.93, oxfmt 0.78, pnpm 12.20.0. No runtime change.
 
 ## [2.6.0] - 2026-11-08
