@@ -12,6 +12,7 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ### Changed
 
+- `execute_sql` refuses statements that start with `DO` or `CALL` (after any comments), in every statement of the text, before anything reaches the control plane. A DO block or a procedure can change any number of rows in one statement, which the write guard cannot review; the refusal points at the dashboard's SQL Studio and `capydb sql`, which still run them. `run_preview_sql` is unchanged. (H-09)
 - `packageManager` back to pnpm 11.28.11: Vercel's install refuses pnpm 12.20.0 (`ERR_PNPM_PNPM_ENGINE_IDENTITY_MISMATCH`, invalid registry signature), which failed the 2026-11-12 production builds. Same dependency resolution.
 - Dev tooling: oxlint 1.93, oxfmt 0.78, pnpm 12.20.0. No runtime change.
 

@@ -72,6 +72,7 @@ import {
   usageSchema,
 } from "./output-schemas.js";
 import { formatExplainResult, prepareExplainQuery } from "./explain.js";
+import { refuseDoAndCall } from "./sql-scan.js";
 import type { Job, Project } from "./types.js";
 
 const PROVISION_POLL_INTERVAL_MS = 3_000;
@@ -1687,6 +1688,7 @@ export function registerTools(
       description:
         "Execute a SQL statement that changes data or schema (INSERT, UPDATE, DELETE, DDL) against the LIVE project database - treat it with the same care as running it in production. For anything that only reads, use query_sql instead. " +
         "An UPDATE or DELETE with no WHERE clause, and any TRUNCATE, are REFUSED by the control plane rather than run - the refusal names the remedy, so read it and re-issue a scoped statement rather than trying to work around it. That guard does not make the tool safe: a too-BROAD WHERE clause passes it and still rewrites rows you did not mean, and the original values are not recoverable from the table afterwards. Check that the WHERE clause scopes the rows you actually mean. " +
+        "DO blocks and CALL statements are refused here (their bodies can change any number of rows unseen); ask the user to run those from the dashboard's SQL Studio or with `capydb sql`. " +
         "For anything destructive, call create_restore_point FIRST - that is what makes the change reversible, and reconstructing overwritten values from a related table afterwards is lossy (it recovers the rows, not necessarily the exact per-column history). " +
         "ALSO append RETURNING old.*, new.* to any UPDATE or DELETE on a Postgres 18 cell (check with get_project). Postgres 18 returns both the pre- and post-image of every affected row, so the exact per-column values you are about to overwrite come back in the result and land in SQL history - the restore point is the recovery path, this is the record of what changed. It is a syntax error on 16/17, where the restore point is the only safeguard. " +
         sqlLimits,
@@ -1694,7 +1696,10 @@ export function registerTools(
       annotations: { destructiveHint: true },
     },
     async ({ project_id, query, max_rows }) =>
-      run(auth, () => client.runSql(project_id, { query, max_rows })),
+      run(auth, async () => {
+        refuseDoAndCall(query);
+        return client.runSql(project_id, { query, max_rows });
+      }),
   );
 
   server.registerTool(

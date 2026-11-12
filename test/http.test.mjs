@@ -926,6 +926,38 @@ test("explain_query plans one statement read-only and refuses ANALYZE and multi-
   }
 });
 
+test("execute_sql refuses DO and CALL and points at Studio or the CLI", async () => {
+  const bodies = [];
+  route("POST /v1/projects/prj_1/sql", ({ body }) => {
+    bodies.push(body);
+    return [200, { result: { columns: [], rows: [], row_count: 1, truncated: false } }];
+  });
+  for (const query of [
+    "DO $$ BEGIN PERFORM 1; END $$",
+    "do$$begin end$$",
+    "  call archive_orders(30)",
+    "-- housekeeping\n/* outer /* nested */ still a comment */ CALL p()",
+    "update t set n = 1 where id = 1; do $$ begin end $$",
+  ]) {
+    const refused = await callTool("execute_sql", { project_id: "prj_1", query });
+    assert.equal(refused.isError, true, query);
+    assert.match(refused.content[0].text, /Studio/);
+    assert.match(refused.content[0].text, /capydb/);
+  }
+  assert.equal(bodies.length, 0, "a refused statement must not reach the control plane");
+
+  for (const query of [
+    "insert into calls (id) values (1)",
+    "UPDATE done SET x = 1 WHERE id = 1",
+    "/* do */ update docs set title = 'call me' where id = 2",
+    "create domain dollars as numeric",
+  ]) {
+    const accepted = await callTool("execute_sql", { project_id: "prj_1", query });
+    assert.notEqual(accepted.isError, true, `${query}: ${accepted.content?.[0]?.text}`);
+  }
+  assert.equal(bodies.length, 4);
+});
+
 test("project write tools reach their endpoints", async () => {
   const jobFor = (id) => () => [202, { job: { ...JOB, id } }];
   route("POST /v1/projects/prj_1/retry-provisioning", jobFor("job_retry"));

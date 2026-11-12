@@ -39,6 +39,24 @@ export function isBlank(sql: string): boolean {
   return skipNoise(sql, 0) >= sql.length;
 }
 
+/**
+ * The statement's first keyword, upper-cased, after leading whitespace and
+ * comments - or "" when it does not start with a bare word. The word ends at
+ * the first character that is not a letter; when an identifier character
+ * other than `$` follows (`DOMAIN`, `do_it`), the word is part of a longer
+ * identifier and is returned whole.
+ */
+export function firstKeyword(statement: string): string {
+  const rest = statement.slice(skipNoise(statement, 0));
+  const word = /^[A-Za-z]+/.exec(rest)?.[0];
+  if (word === undefined) return "";
+  const next = rest[word.length];
+  if (next !== undefined && next !== "$" && IDENT_CONT.test(next)) {
+    return (/^[A-Za-z0-9_$\u0080-￿]+/.exec(rest)?.[0] ?? word).toUpperCase();
+  }
+  return word.toUpperCase();
+}
+
 /** Index of the first character at or after `from` that is not whitespace or inside a comment. */
 function skipNoise(sql: string, from: number): number {
   let i = from;
@@ -130,4 +148,22 @@ function skipBlockComment(sql: string, start: number): number {
     }
   }
   return sql.length;
+}
+
+/**
+ * Refuses text in which any statement starts with DO or CALL. A DO block or a
+ * procedure can run any number of writes inside one statement, which the
+ * control plane's unqualified-write guard cannot see into; through an agent
+ * there is no person reading the body first, so the MCP path does not run
+ * them at all (owner decision H-09, 2026-11-12). Studio and the CLI still do.
+ */
+export function refuseDoAndCall(query: string): void {
+  for (const statement of splitStatements(query)) {
+    const keyword = firstKeyword(statement);
+    if (keyword === "DO" || keyword === "CALL") {
+      throw new Error(
+        `execute_sql does not run ${keyword === "DO" ? "DO blocks" : "CALL statements"}: they can change any number of rows in one statement, which the write guard cannot review. Ask the user to run it from the SQL Studio in the CapyDB dashboard or with \`capydb sql\` in the CapyDB CLI, or issue the individual INSERT/UPDATE/DELETE statements here instead.`,
+      );
+    }
+  }
 }
