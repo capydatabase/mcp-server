@@ -193,7 +193,7 @@ export function registerTools(
       title: "List regions",
       description:
         "List the regions a CapyDB Postgres project can be placed in: regions holds the ids (e.g. eu-north-1) that create_project takes, and region_details the same regions in the same order with a display name and location to show the user. " +
-        "Omit the region on create to let CapyDB choose. The former id hel1 is still accepted as a deprecated alias of eu-north-1 but will stop working - always pass the ids listed here.",
+        "Omit the region on create to let CapyDB choose; otherwise always pass one of the ids listed here.",
       inputSchema: z.object({}),
       outputSchema: regionsSchema,
       annotations: { readOnlyHint: true },
