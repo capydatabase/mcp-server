@@ -6,6 +6,10 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Dev tooling: oxlint 1.93, oxfmt 0.78, pnpm 12.20.0. No runtime change.
+
 ## [2.6.0] - 2026-11-08
 
 ### Added
