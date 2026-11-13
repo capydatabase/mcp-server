@@ -8,6 +8,9 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ### Fixed
 
+- The major-upgrade tools no longer tell agents that a 403 "saying it is not enabled" is normal:
+  self-serve upgrades are on everywhere, so a 403 means the role or the approval is missing.
+  `search_logs` says a 503 means log search is switched off, instead of "not enabled there".
 - `explain_query`: a `$` inside an identifier (`price$1`, `col$q$`) no longer opens a dollar quote in the multi-statement check, so a second statement after such an identifier is refused and a tag-looking identifier no longer swallows text up to a matching string. Dollar-quote tags may hold digits, block comments nest and `E'...'` strings honour backslash escapes, as in Postgres. (FG-9)
 
 ### Changed
