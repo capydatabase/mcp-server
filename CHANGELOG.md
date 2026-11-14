@@ -6,6 +6,10 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `get_observability` describes and declares the Postgres 19 readings: `generic_plan_calls`/`custom_plan_calls` on each slow query, `lock_waits` and `autovacuum_priority`. All absent for Postgres 16-18 databases.
+
 ### Fixed
 
 - The major-upgrade tools no longer tell agents that a 403 "saying it is not enabled" is normal:

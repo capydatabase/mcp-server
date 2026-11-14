@@ -353,6 +353,14 @@ export const observabilitySchema = conforms<ProjectObservability>()(
       .describe(
         "Scale-to-zero wakes over the window (7 days) and how long they took; percentiles are null when no wake was timed.",
       ),
+    lock_waits: z
+      .looseObject({ types: z.array(record) })
+      .nullish()
+      .describe("Postgres 19 only: lock waits per lock type for the server the database runs on."),
+    autovacuum_priority: z
+      .looseObject({ tables: z.array(record) })
+      .nullish()
+      .describe("Postgres 19 only: the tables autovacuum would reach first, highest score first."),
   }),
 );
 
