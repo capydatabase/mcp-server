@@ -6,6 +6,8 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-11-14
+
 ### Added
 
 - `get_observability` describes and declares the Postgres 19 readings: `generic_plan_calls`/`custom_plan_calls` on each slow query, `lock_waits` and `autovacuum_priority`. All absent for Postgres 16-18 databases.
@@ -449,7 +451,8 @@ Tagged but never published to npm; its changes reach npm with 1.9.0.
   SQL, logs and observability. All diagnostics go to stderr; production-overwrite restore is
   deliberately not exposed as a tool.
 
-[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v2.6.0...HEAD
+[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v2.7.0...HEAD
+[2.7.0]: https://github.com/capydatabase/mcp-server/compare/v2.6.0...v2.7.0
 [2.6.0]: https://github.com/capydatabase/mcp-server/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/capydatabase/mcp-server/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/capydatabase/mcp-server/compare/v2.3.0...v2.4.0
