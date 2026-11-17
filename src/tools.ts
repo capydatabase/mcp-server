@@ -1912,6 +1912,8 @@ export function registerTools(
         "Covers threshold alerts on storage and connection usage against the plan limits, backup failure/staleness alerts, " +
         "reachability alerts (unreachable: the database does not answer probe connections; kv_unreachable: the project's K/V store does not; " +
         "pooler_handshake: clients are failing the pooled-connection handshake), " +
+        "read_only (critical: a platform safety control has made the database read-only, so every write fails with " +
+        "'cannot execute ... in a read-only transaction' until it is lifted; nothing in the application needs changing), " +
         "and warning-severity health advisories (cache_hit, blocked_queries, deadlocks, vacuum, long_transaction, subtransactions, oom_kill, temp_spill) derived from the periodic " +
         "metrics sweep. An alert is open while resolved_at is absent; it resolves on its own when the condition clears. " +
         "Set include_resolved to also see alerts resolved in the last 30 days - useful for asking whether a condition has " +

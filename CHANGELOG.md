@@ -6,6 +6,10 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `list_alerts` describes the `read_only` alert: a platform safety control has made the database read-only, writes fail until it is lifted, and the application has nothing to change. An agent that sees write errors on a project can now tell this from a bug in its own SQL.
+
 ## [2.7.0] - 2026-11-14
 
 ### Added
