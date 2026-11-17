@@ -6,6 +6,8 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-11-17
+
 ### Changed
 
 - `list_alerts` describes the `read_only` alert: a platform safety control has made the database read-only, writes fail until it is lifted, and the application has nothing to change. An agent that sees write errors on a project can now tell this from a bug in its own SQL.
@@ -455,7 +457,8 @@ Tagged but never published to npm; its changes reach npm with 1.9.0.
   SQL, logs and observability. All diagnostics go to stderr; production-overwrite restore is
   deliberately not exposed as a tool.
 
-[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v2.7.0...HEAD
+[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v2.8.0...HEAD
+[2.8.0]: https://github.com/capydatabase/mcp-server/compare/v2.7.0...v2.8.0
 [2.7.0]: https://github.com/capydatabase/mcp-server/compare/v2.6.0...v2.7.0
 [2.6.0]: https://github.com/capydatabase/mcp-server/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/capydatabase/mcp-server/compare/v2.4.0...v2.5.0
