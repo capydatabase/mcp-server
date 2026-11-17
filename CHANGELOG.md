@@ -11,6 +11,7 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 ### Changed
 
 - `list_alerts` describes the `read_only` alert: a platform safety control has made the database read-only, writes fail until it is lifted, and the application has nothing to change. An agent that sees write errors on a project can now tell this from a bug in its own SQL.
+- Dev tooling: `@capydb/sdk` types 1.27, oxlint 1.94, oxfmt 0.79, `typescript@next` 7.1.0-dev.20261117.1. `packageManager` is pnpm 12.21.0, which Vercel's install accepts (it refused 12.20.0 on 2026-11-12). No runtime change.
 
 ## [2.7.0] - 2026-11-14
 
@@ -30,8 +31,8 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 - `execute_sql` refuses statements that start with `DO` or `CALL` (after any comments), in every statement of the text, before anything reaches the control plane. A DO block or a procedure can change any number of rows in one statement, which the write guard cannot review; the refusal points at the dashboard's SQL Studio and `capydb sql`, which still run them. `run_preview_sql` is unchanged. (H-09)
 - Remote endpoint: the protected-resource metadata URL and the 401 `WWW-Authenticate` challenge come from the MCP SDK 2.4 helpers (`getOAuthProtectedResourceMetadataUrl`, `bearerAuthChallengeResponse`) instead of hand-written code. The challenge for a call without a token now also carries `error="invalid_token"`, and header values are escaped; the metadata URL, the scopes and the anonymous tools are unchanged. (C-09)
 - `list_regions` no longer mentions the retired `hel1` alias; the control plane stops accepting it, so pass the listed ids (`eu-north-1`).
-- `packageManager` back to pnpm 11.28.11: Vercel's install refuses pnpm 12.21.0 (`ERR_PNPM_PNPM_ENGINE_IDENTITY_MISMATCH`, invalid registry signature), which failed the 2026-11-12 production builds. Same dependency resolution.
-- Dev tooling: oxlint 1.93, oxfmt 0.78, pnpm 12.21.0. No runtime change.
+- `packageManager` back to pnpm 11.28.11: Vercel's install refuses pnpm 12.20.0 (`ERR_PNPM_PNPM_ENGINE_IDENTITY_MISMATCH`, invalid registry signature), which failed the 2026-11-12 production builds. Same dependency resolution.
+- Dev tooling: oxlint 1.93, oxfmt 0.78, pnpm 12.20.0. No runtime change.
 
 ## [2.6.0] - 2026-11-08
 
