@@ -6,6 +6,10 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Dev tooling: `engines.node` is `>=24.22.3`. `packageManager` stays pnpm 12.21.0 (12.22.0 is only on pnpm's `next-12` tag and unverified on Vercel). No runtime change.
+
 ## [2.8.0] - 2026-11-17
 
 ### Changed
