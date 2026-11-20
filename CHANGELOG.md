@@ -6,6 +6,8 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.8.1] - 2026-11-20
+
 ### Changed
 
 - **PostgreSQL 19 is generally available on CapyDB.** `create_project` and
@@ -468,7 +470,8 @@ Tagged but never published to npm; its changes reach npm with 1.9.0.
   SQL, logs and observability. All diagnostics go to stderr; production-overwrite restore is
   deliberately not exposed as a tool.
 
-[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v2.8.0...HEAD
+[Unreleased]: https://github.com/capydatabase/mcp-server/compare/v2.8.1...HEAD
+[2.8.1]: https://github.com/capydatabase/mcp-server/compare/v2.8.0...v2.8.1
 [2.8.0]: https://github.com/capydatabase/mcp-server/compare/v2.7.0...v2.8.0
 [2.7.0]: https://github.com/capydatabase/mcp-server/compare/v2.6.0...v2.7.0
 [2.6.0]: https://github.com/capydatabase/mcp-server/compare/v2.5.0...v2.6.0
