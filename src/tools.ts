@@ -207,7 +207,8 @@ export function registerTools(
       title: "List Postgres versions",
       description:
         "List the Postgres majors a new database can be created on, oldest first: version (the value create_project and create_ephemeral_database take as postgres_version), channel (previous, stable, current or beta), default (what an omitted postgres_version gets) and production_ready. " +
-        "A beta major is listed only while CapyDB offers one and is NOT production ready: no uptime or durability commitment, extensions may be missing, backups are best effort, and the database may have to be recreated rather than upgraded when that major is released. " +
+        "previous is the oldest generally available major, stable the proven ones (the default among them), current the newest. " +
+        "A beta major (an upstream pre-release) is listed only while CapyDB offers one and is NOT production ready: no uptime or durability commitment, extensions may be missing, backups are best effort, and the database may have to be recreated rather than upgraded when that major is released. " +
         "Only choose a beta when the user explicitly wants to evaluate it, and never for data they need to keep.",
       inputSchema: z.object({}),
       outputSchema: postgresVersionsSchema,
@@ -292,7 +293,7 @@ export function registerTools(
           .enum(["16", "17", "18", "19"])
           .optional()
           .describe(
-            "Postgres major version for the database (see list_postgres_versions). Omit for the platform default. 19 is a beta, accepted only while CapyDB offers it and not for production data. Immutable after creation except through a major upgrade; previews and restores inherit it.",
+            "Postgres major version for the database (see list_postgres_versions). Omit for the platform default. Immutable after creation except through a major upgrade; previews and restores inherit it.",
           ),
         region: z
           .string()
@@ -644,7 +645,7 @@ export function registerTools(
           .enum(["16", "17", "18", "19"])
           .optional()
           .describe(
-            "Postgres major version (see list_postgres_versions). Omit for the platform default. 19 is a beta, accepted only while CapyDB offers it.",
+            "Postgres major version (see list_postgres_versions). Omit for the platform default.",
           ),
       }),
       annotations: { destructiveHint: false, idempotentHint: false },
@@ -1690,7 +1691,7 @@ export function registerTools(
         "An UPDATE or DELETE with no WHERE clause, and any TRUNCATE, are REFUSED by the control plane rather than run - the refusal names the remedy, so read it and re-issue a scoped statement rather than trying to work around it. That guard does not make the tool safe: a too-BROAD WHERE clause passes it and still rewrites rows you did not mean, and the original values are not recoverable from the table afterwards. Check that the WHERE clause scopes the rows you actually mean. " +
         "DO blocks and CALL statements are refused here (their bodies can change any number of rows unseen); ask the user to run those from the dashboard's SQL Studio or with `capydb sql`. " +
         "For anything destructive, call create_restore_point FIRST - that is what makes the change reversible, and reconstructing overwritten values from a related table afterwards is lossy (it recovers the rows, not necessarily the exact per-column history). " +
-        "ALSO append RETURNING old.*, new.* to any UPDATE or DELETE on a Postgres 18 cell (check with get_project). Postgres 18 returns both the pre- and post-image of every affected row, so the exact per-column values you are about to overwrite come back in the result and land in SQL history - the restore point is the recovery path, this is the record of what changed. It is a syntax error on 16/17, where the restore point is the only safeguard. " +
+        "ALSO append RETURNING old.*, new.* to any UPDATE or DELETE on a Postgres 18 or newer cell (check with get_project). Postgres 18 and newer return both the pre- and post-image of every affected row, so the exact per-column values you are about to overwrite come back in the result and land in SQL history - the restore point is the recovery path, this is the record of what changed. It is a syntax error on 16/17, where the restore point is the only safeguard. " +
         sqlLimits,
       inputSchema: sqlInputSchema,
       annotations: { destructiveHint: true },

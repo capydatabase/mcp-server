@@ -560,13 +560,18 @@ test("list_postgres_versions wraps the versions", async () => {
       versions: [
         { version: "16", channel: "previous", default: false, production_ready: true },
         { version: "17", channel: "stable", default: true, production_ready: true },
-        { version: "19", channel: "beta", default: false, production_ready: false },
+        { version: "18", channel: "stable", default: false, production_ready: true },
+        { version: "19", channel: "current", default: false, production_ready: true },
+        // No major is on the beta channel today; a future one is passed through the same way.
+        { version: "20", channel: "beta", default: false, production_ready: false },
       ],
     },
   ]);
   const result = await callTool("list_postgres_versions", {});
-  assert.equal(result.structuredContent.versions.length, 3);
-  assert.equal(result.structuredContent.versions[2].production_ready, false);
+  assert.equal(result.structuredContent.versions.length, 5);
+  assert.equal(result.structuredContent.versions[3].channel, "current");
+  assert.equal(result.structuredContent.versions[3].production_ready, true);
+  assert.equal(result.structuredContent.versions[4].production_ready, false);
 });
 
 test("create_ephemeral_database forwards the caller's bearer only when there is one", async () => {

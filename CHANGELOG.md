@@ -8,6 +8,12 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ### Changed
 
+- **PostgreSQL 19 is generally available on CapyDB.** `create_project` and
+  `create_ephemeral_database` no longer describe `postgres_version` 19 as a beta, and
+  `list_postgres_versions` explains the channels as they now are: `previous` the oldest GA major,
+  `stable` the proven ones (the default among them), `current` the newest, `beta` an upstream
+  pre-release listed only while one is on offer. `execute_sql` asks for `RETURNING old.*, new.*` on
+  Postgres 18 and newer cells, not 18 only.
 - Dev tooling: `engines.node` is `>=24.22.3`. `packageManager` stays pnpm 12.21.0 (12.22.0 is only on pnpm's `next-12` tag and unverified on Vercel). No runtime change.
 
 ## [2.8.0] - 2026-11-17
