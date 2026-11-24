@@ -53,13 +53,29 @@ const PROJECT = {
   last_error: null,
 };
 
+/**
+ * Keys minted through OAuth for a named resource (RFC 8707): the control plane
+ * reports the resource on /v1/me. GOOD_TOKEN stands for every key without one -
+ * keys minted before the binding existed, dashboard and CLI keys.
+ */
+const BOUND_TOKENS = {
+  capy_live_bound_here: RESOURCE,
+  // The same URL spelled differently is still this server.
+  capy_live_bound_here_spelled: "HTTPS://MCP.example.test:443/mcp",
+  capy_live_bound_elsewhere: "https://other.example.test/mcp",
+  capy_live_bound_sibling: `${RESOURCE}/v2`,
+};
+
 const baseRoutes = {
-  "GET /v1/me": ({ auth }) =>
-    auth === `Bearer ${GOOD_TOKEN}`
-      ? [200, { principal: { scopes: ["projects:read"] } }]
-      : [401, { error: "unauthorized" }],
+  "GET /v1/me": ({ auth }) => {
+    if (auth === `Bearer ${GOOD_TOKEN}`) return [200, { principal: { scopes: ["projects:read"] } }];
+    const token = auth?.replace(/^Bearer /, "");
+    return token in BOUND_TOKENS
+      ? [200, { principal: { scopes: ["projects:read"], resource: BOUND_TOKENS[token] } }]
+      : [401, { error: "unauthorized" }];
+  },
   "GET /v1/projects": ({ auth }) =>
-    auth === `Bearer ${GOOD_TOKEN}`
+    auth === `Bearer ${GOOD_TOKEN}` || auth?.replace(/^Bearer /, "") in BOUND_TOKENS
       ? [200, { projects: [PROJECT] }]
       : [401, { error: "unauthorized" }],
 };
@@ -334,6 +350,67 @@ test("a valid token reaches the account tools and forwards the caller's address"
   const call = seen.findLast((entry) => entry.url === "/v1/projects");
   assert.equal(call.headers["x-capydb-client-ip"], "203.0.113.7");
   assert.equal(call.headers["x-capydb-bridge-secret"], "s3cret");
+});
+
+test("a key bound to this resource is accepted, however the URL is spelled", async () => {
+  for (const token of ["capy_live_bound_here", "capy_live_bound_here_spelled"]) {
+    const response = await handler().mcp(
+      rpc("tools/call", { name: "list_projects", arguments: {} }, token),
+    );
+    assert.equal(response.status, 200, token);
+    const { result } = await rpcResult(response);
+    assert.notEqual(result.isError, true, token);
+    assert.match(result.content[0].text, /prj_1/);
+  }
+});
+
+test("a key bound to a different resource is refused with the 401 challenge", async () => {
+  const server = handler();
+  for (const token of ["capy_live_bound_elsewhere", "capy_live_bound_sibling"]) {
+    // Twice: a refusal must not be remembered as an accepted token.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const before = seen.length;
+      const response = await server.mcp(
+        rpc("tools/call", { name: "list_projects", arguments: {} }, token),
+      );
+      assert.equal(response.status, 401, token);
+      const challenge = response.headers.get("www-authenticate");
+      assert.match(challenge, /error="invalid_token"/);
+      assert.match(
+        challenge,
+        /resource_metadata="https:\/\/mcp\.example\.test\/\.well-known\/oauth-protected-resource\/mcp"/,
+      );
+      assert.match((await response.json()).error_description, /different MCP server/);
+      // The token never reaches a tool: only the identity call is made.
+      assert.deepEqual(
+        seen.slice(before).map((entry) => entry.path),
+        ["/v1/me"],
+      );
+    }
+  }
+  // tools/list needs no account, but a token that is presented is still checked.
+  const listed = await server.mcp(rpc("tools/list", {}, "capy_live_bound_elsewhere"));
+  assert.equal(listed.status, 401);
+});
+
+test("a key with no bound resource is accepted as before", async () => {
+  // An unbound key, and a control plane that predates the field or answers
+  // something this server cannot read: all are today's behaviour.
+  const shapes = [
+    { principal: { scopes: ["projects:read"] } },
+    { principal: { scopes: ["projects:read"], resource: "" } },
+    { principal: { scopes: ["projects:read"], resource: null } },
+    {},
+  ];
+  for (const shape of shapes) {
+    route("GET /v1/me", () => [200, shape]);
+    const response = await handler().mcp(
+      rpc("tools/call", { name: "list_projects", arguments: {} }, GOOD_TOKEN),
+    );
+    assert.equal(response.status, 200, JSON.stringify(shape));
+    const { result } = await rpcResult(response);
+    assert.notEqual(result.isError, true, JSON.stringify(shape));
+  }
 });
 
 test("protected resource metadata names the resource and the issuer", async () => {

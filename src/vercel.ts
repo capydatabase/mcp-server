@@ -6,6 +6,8 @@
  *   defaults to https://api.capydb.dev.
  * - CAPYDB_MCP_RESOURCE_URL (optional) - the public MCP endpoint URL; defaults
  *   to https://mcp.capydb.dev/mcp. Must equal what users enter in their client.
+ *   KEEP IN LOCKSTEP with the control plane's CAPYDB_OAUTH_RESOURCES: a key is
+ *   minted for a URL listed there and refused here unless it is this one.
  * - CAPYDB_OAUTH_ISSUER (optional) - the OAuth issuer; defaults to
  *   https://api.capydb.dev. KEEP IN LOCKSTEP with the control plane's
  *   CAPYDB_OAUTH_ISSUER.

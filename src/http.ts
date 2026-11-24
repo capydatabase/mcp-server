@@ -18,6 +18,12 @@
  * the parsed JSON-RPC body, before the SDK sees the request - and why a
  * revoked or expired token is caught here too, by asking the control plane
  * about it, rather than inside the tool that would fail with it.
+ *
+ * The same answer carries the token's audience (RFC 8707): the control plane
+ * records the `resource` an OAuth client named on the key it mints, and a key
+ * recorded for a different MCP endpoint is refused here like a revoked one. A
+ * key with no recorded resource is accepted, so API keys and connections made
+ * before the binding keep working.
  */
 
 import { isIP } from "node:net";
@@ -93,7 +99,10 @@ export interface CapyDBHttpOptions {
   /**
    * Public URL of the MCP endpoint, exactly as users enter it in their client
    * (e.g. `https://mcp.capydb.dev/mcp`). Clients compare it with the `resource`
-   * in the protected resource metadata and send it as the OAuth `resource`.
+   * in the protected resource metadata and send it as the OAuth `resource`; the
+   * control plane records it on the key it mints, and a key recorded for any
+   * other URL is refused here.
+   * KEEP IN LOCKSTEP with the control plane's `CAPYDB_OAUTH_RESOURCES`.
    */
   resourceUrl: string;
   /** The OAuth issuer that mints tokens for this resource (e.g. `https://api.capydb.dev`). */
@@ -114,7 +123,11 @@ export interface CapyDBHttpHandler {
   protectedResourceMetadata(request: Request): Response;
 }
 
-type TokenCheck = "valid" | "invalid";
+/**
+ * What the control plane says about a bearer token. `wrong-resource` is a live
+ * key that was minted for another MCP endpoint (RFC 8707 audience binding).
+ */
+type TokenCheck = "valid" | "invalid" | "wrong-resource";
 
 /** Tool auth for one HTTP request: the caller's bearer token, or nothing. */
 class BearerAuth implements ToolAuth {
@@ -183,14 +196,23 @@ export function createCapyDBHttpHandler(options: CapyDBHttpOptions): CapyDBHttpH
         ...callerHeaders(request),
       },
     });
-    // Drain the body so the connection can be reused; its content is not needed.
-    await response.arrayBuffer();
+    // Always read the body, so the connection can be reused.
+    const body = await response.text();
     if (response.status === 401 || response.status === 403) {
       checkedTokens.delete(key);
       return "invalid";
     }
     if (!response.ok) {
       throw new Error(`CapyDB token check failed: HTTP ${response.status}`);
+    }
+    // A key minted through OAuth for a named resource is only good for that
+    // resource. A key with none - every key minted before the control plane
+    // recorded it, dashboard and CLI keys, clients that sent no `resource` - is
+    // accepted as before. A refusal is never cached.
+    const boundTo = boundResource(body);
+    if (boundTo !== undefined && !isSameResource(boundTo, resource)) {
+      checkedTokens.delete(key);
+      return "wrong-resource";
     }
     if (checkedTokens.size >= TOKEN_CHECK_CACHE_MAX) checkedTokens.clear();
     checkedTokens.set(key, now + TOKEN_CHECK_TTL_MS);
@@ -250,6 +272,9 @@ export function createCapyDBHttpHandler(options: CapyDBHttpOptions): CapyDBHttpH
         if (check === "invalid") {
           return challenge("The access token is expired, revoked or not a CapyDB token");
         }
+        if (check === "wrong-resource") {
+          return challenge("The access token was issued for a different MCP server");
+        }
       } else if (hasParsedBody && callsAccountTool(parsedBody)) {
         return challenge("Sign in to CapyDB to use this tool");
       }
@@ -284,6 +309,31 @@ export function createCapyDBHttpHandler(options: CapyDBHttpOptions): CapyDBHttpH
       );
     },
   };
+}
+
+/**
+ * The resource a key is bound to, from the control plane's `GET /v1/me` answer
+ * (`principal.resource`); undefined for an unbound key. An answer this server
+ * cannot read - a control plane that predates the field included - counts as
+ * unbound, which is how every key was treated before the binding existed.
+ */
+function boundResource(viewerJson: string): string | undefined {
+  let viewer: unknown;
+  try {
+    viewer = JSON.parse(viewerJson);
+  } catch {
+    return undefined;
+  }
+  if (typeof viewer !== "object" || viewer === null) return undefined;
+  const principal = (viewer as { principal?: unknown }).principal;
+  if (typeof principal !== "object" || principal === null) return undefined;
+  const bound = (principal as { resource?: unknown }).resource;
+  return typeof bound === "string" && bound !== "" ? bound : undefined;
+}
+
+/** Compares a bound resource with this server's own as URLs, not as strings. */
+function isSameResource(bound: string, own: URL): boolean {
+  return URL.canParse(bound) && new URL(bound).href === own.href;
 }
 
 /** True when any JSON-RPC message in the body calls a tool that needs an account. */
