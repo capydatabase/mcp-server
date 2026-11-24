@@ -201,8 +201,9 @@ be chosen per project. If the organization has no active plan, the tool fails wi
   no backups, no point-in-time recovery - so each of those is one irreversible step away from
   unrecoverable data. They stay in the dashboard and the CLI, behind a confirmation. `create_kv_store`
   returns the plaintext token once, because that is the only response that carries it.
-- Every tool has a `title` and declares its effect: read-only tools carry `readOnlyHint: true`, and every
-  other tool carries `destructiveHint` - `true` for the ones that delete or overwrite data
+- Every tool has a `title`, sent again as `annotations.title`, and declares its effect: `readOnlyHint`
+  is an explicit boolean on every tool (`true` on the ones that only read), and every other tool also
+  carries `destructiveHint` - `true` for the ones that delete or overwrite data
   (`delete_preview_database`, `reset_preview_database`, `disable_extension`, `restore`,
   `delete_restore_point`, `import_database`, `destroy_ephemeral_database`, `execute_sql`,
   `run_preview_sql`, `update_backup_schedule`, `rotate_app_role`, `sync_integration_env`,

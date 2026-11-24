@@ -1,6 +1,6 @@
 // Exercises the remote HTTP entry against a stub control plane: the lazy-auth
 // gate, token checking, discovery metadata, the tool annotations the Claude
-// connector directory requires, output schemas, and whole tool flows
+// connector directory reads, output schemas, and whole tool flows
 // (create_project, import_database, the backup-schedule and notification-preference merges, the
 // major-upgrade steps, preview SQL, lint, typegen, log search). Runs against the built bundle (`pnpm test`
 // builds first), so it covers what ships.
@@ -150,24 +150,89 @@ async function rpcResult(response) {
   return JSON.parse(payload);
 }
 
-test("tools/list works without a token and every tool is annotated", async () => {
+/**
+ * How every write tool is classified. A tool in neither list has to be
+ * read-only, so a new tool cannot reach the directory without a decision here.
+ */
+const DESTRUCTIVE_TOOLS = [
+  "confirm_major_upgrade",
+  "delete_preview_database",
+  "delete_restore_point",
+  "destroy_ephemeral_database",
+  "disable_extension",
+  "execute_sql",
+  "import_database",
+  "reset_preview_database",
+  "restore",
+  "rollback_major_upgrade",
+  "rotate_app_role",
+  "run_preview_sql",
+  "sync_integration_env",
+  "update_backup_schedule",
+  "upgrade_postgres_major",
+];
+const ADDITIVE_WRITE_TOOLS = [
+  "acknowledge_alert",
+  "claim_ephemeral_database",
+  "create_backup",
+  "create_ephemeral_database",
+  "create_kv_store",
+  "create_preview_database",
+  "create_project",
+  "create_restore_point",
+  "enable_app_role",
+  "enable_extension",
+  "export_database",
+  "extend_preview_ttl",
+  "retry_provisioning",
+  "update_extension",
+  "update_notification_preferences",
+  "update_project_settings",
+];
+
+async function listTools() {
   const response = await handler().mcp(rpc("tools/list", {}));
   assert.equal(response.status, 200);
   const { result } = await rpcResult(response);
-  const tools = result.tools;
+  return result.tools;
+}
+
+test("tools/list works without a token and every tool carries the directory's annotations", async () => {
+  const tools = await listTools();
   assert.ok(tools.length > 40);
   for (const tool of tools) {
     assert.ok(tool.title, `${tool.name} has no title`);
     const hints = tool.annotations ?? {};
-    assert.ok(
-      hints.readOnlyHint === true || typeof hints.destructiveHint === "boolean",
-      `${tool.name} declares neither readOnlyHint nor destructiveHint`,
-    );
+    // The Claude directory reads the listing name from annotations.title, not
+    // from the top-level title, and wants readOnlyHint stated on every tool.
+    assert.equal(hints.title, tool.title, `${tool.name}: annotations.title is not the title`);
+    assert.equal(typeof hints.readOnlyHint, "boolean", `${tool.name} has no explicit readOnlyHint`);
+    if (hints.readOnlyHint) {
+      assert.equal("destructiveHint" in hints, false, `${tool.name} is read-only and destructive`);
+    } else {
+      assert.equal(
+        typeof hints.destructiveHint,
+        "boolean",
+        `${tool.name} writes without an explicit destructiveHint`,
+      );
+    }
     assert.ok(tool.name.length <= 64);
   }
+  const named = (predicate) =>
+    tools
+      .filter((tool) => predicate(tool.annotations))
+      .map((tool) => tool.name)
+      .sort();
+  assert.deepEqual(
+    named((hints) => hints.readOnlyHint === false && hints.destructiveHint === true),
+    DESTRUCTIVE_TOOLS,
+  );
+  assert.deepEqual(
+    named((hints) => hints.readOnlyHint === false && hints.destructiveHint === false),
+    ADDITIVE_WRITE_TOOLS,
+  );
   const byName = new Map(tools.map((tool) => [tool.name, tool]));
   assert.equal(byName.get("query_sql").annotations.readOnlyHint, true);
-  assert.equal(byName.get("execute_sql").annotations.destructiveHint, true);
   assert.equal(byName.has("run_sql"), false);
   assert.equal("read_only" in byName.get("query_sql").inputSchema.properties, false);
 });
