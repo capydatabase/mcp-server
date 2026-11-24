@@ -444,6 +444,8 @@ export class CapyDBClient {
   /**
    * Runs a statement against a preview database. Tagged like `runSql`; unlike
    * the project runner, the control plane does not record it in SQL history.
+   * With `read_only` the control plane runs it in a READ ONLY transaction, so
+   * the preview's own Postgres refuses any write (`query_preview_sql`).
    */
   async runPreviewSql(previewId: string, body: SQLQueryRequest): Promise<SQLQueryResult> {
     const data = await this.request<{ result: SQLQueryResult }>(

@@ -160,13 +160,13 @@ const DESTRUCTIVE_TOOLS = [
   "delete_restore_point",
   "destroy_ephemeral_database",
   "disable_extension",
+  "execute_preview_sql",
   "execute_sql",
   "import_database",
   "reset_preview_database",
   "restore",
   "rollback_major_upgrade",
   "rotate_app_role",
-  "run_preview_sql",
   "sync_integration_env",
   "update_backup_schedule",
   "upgrade_postgres_major",
@@ -579,7 +579,7 @@ test("the new tools are listed with the right hints", async () => {
     "confirm_major_upgrade",
     "rollback_major_upgrade",
     "rotate_app_role",
-    "run_preview_sql",
+    "execute_preview_sql",
     "sync_integration_env",
   ]) {
     assert.equal(byName.get(name)?.annotations?.destructiveHint, true, `${name} is not destructive`);
@@ -595,8 +595,17 @@ test("the new tools are listed with the right hints", async () => {
   for (const name of ["upgrade_postgres_major", "confirm_major_upgrade", "rollback_major_upgrade"]) {
     assert.ok(byName.get(name).inputSchema.required.includes("approval_token"), name);
   }
-  // A read and a write never share a tool: preview SQL has no read-only switch.
-  assert.equal("read_only" in byName.get("run_preview_sql").inputSchema.properties, false);
+  // A read and a write never share a tool: preview SQL is two tools, neither
+  // with a read-only switch, and only the changing one can lift the write guard.
+  assert.equal(byName.has("run_preview_sql"), false);
+  assert.equal(byName.get("query_preview_sql").annotations.readOnlyHint, true);
+  for (const name of ["query_preview_sql", "execute_preview_sql"]) {
+    assert.equal("read_only" in byName.get(name).inputSchema.properties, false, name);
+  }
+  assert.equal(
+    "allow_unqualified_writes" in byName.get("query_preview_sql").inputSchema.properties,
+    false,
+  );
   assert.deepEqual(byName.get("create_project").inputSchema.properties.postgres_version.enum, [
     "16",
     "17",
@@ -780,12 +789,12 @@ test("update_notification_preferences changes only the fields passed", async () 
   assert.equal(empty.isError, true);
 });
 
-test("run_preview_sql targets the preview and tags the statement", async () => {
+test("execute_preview_sql targets the preview and tags the statement", async () => {
   route("POST /v1/preview-databases/pvw_1/sql", ({ body }) => [
     200,
     { result: { columns: [], rows: [], row_count: 3, truncated: false, body } },
   ]);
-  const result = await callTool("run_preview_sql", {
+  const result = await callTool("execute_preview_sql", {
     preview_id: "pvw_1",
     query: "DELETE FROM orders;",
     allow_unqualified_writes: true,
@@ -796,6 +805,41 @@ test("run_preview_sql targets the preview and tags the statement", async () => {
     query: "DELETE FROM orders /*source='capydb-mcp'*/",
     allow_unqualified_writes: true,
   });
+});
+
+test("query_preview_sql asks the control plane for a read-only transaction", async () => {
+  route("POST /v1/preview-databases/pvw_1/sql", ({ body }) =>
+    // The database, not this server, refuses a write in a READ ONLY transaction.
+    /^\s*select/i.test(body.query)
+      ? [200, { result: { columns: ["n"], rows: [{ n: 1 }], row_count: 1, truncated: false, duration_ms: 2 } }]
+      : [400, { error: "cannot execute UPDATE in a read-only transaction" }],
+  );
+  const read = await callTool("query_preview_sql", {
+    preview_id: "pvw_1",
+    query: "select count(*) as n from orders",
+    max_rows: 10,
+  });
+  assert.notEqual(read.isError, true, read.content[0].text);
+  assert.equal(read.structuredContent.row_count, 1);
+  let call = seen.findLast((entry) => entry.path === "/v1/preview-databases/pvw_1/sql");
+  assert.deepEqual(call.body, {
+    query: "select count(*) as n from orders /*source='capydb-mcp'*/",
+    max_rows: 10,
+    read_only: true,
+  });
+
+  // A write is forwarded read-only like anything else: nothing here inspects
+  // the statement, and the control plane's refusal comes back as a tool error.
+  const write = await callTool("query_preview_sql", {
+    preview_id: "pvw_1",
+    query: "update orders set status = 'x' where id = 1",
+    allow_unqualified_writes: true,
+  });
+  assert.equal(write.isError, true);
+  assert.match(write.content[0].text, /read-only transaction/);
+  call = seen.findLast((entry) => entry.path === "/v1/preview-databases/pvw_1/sql");
+  assert.equal(call.body.read_only, true);
+  assert.equal("allow_unqualified_writes" in call.body, false);
 });
 
 test("lint_schema reads the project or the preview report", async () => {

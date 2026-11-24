@@ -137,7 +137,8 @@ For headless/CI, add `"env": { "CAPYDB_API_KEY": "capy_..." }` to the server ent
 | `reset_preview_database` | Reset a preview back to its base state | **destructive** to the preview, async job |
 | `extend_preview_ttl` | Extend a preview's TTL | mutates TTL only |
 | `get_preview_connection_strings` | Pooled + direct URLs for a preview | **secret-bearing output** |
-| `run_preview_sql` | Run a SQL statement against a preview database | **destructive** to the preview; `allow_unqualified_writes` to rehearse a destructive statement |
+| `query_preview_sql` | Run a read-only SQL statement against a preview database | read-only (`READ ONLY` transaction); row-capped, 15s timeout, not recorded in SQL history |
+| `execute_preview_sql` | Run a SQL statement that changes data or schema on a preview database | **destructive** to the preview; `allow_unqualified_writes` to rehearse a destructive statement |
 | `create_backup` | On-demand backup of the project DB | async job |
 | `export_database` | Logical export (`pg_dump` custom-format archive) of the project DB; expires after 7 days | async job |
 | `list_exports` | List a project's exports, newest first | read-only |
@@ -206,13 +207,14 @@ be chosen per project. If the organization has no active plan, the tool fails wi
   carries `destructiveHint` - `true` for the ones that delete or overwrite data
   (`delete_preview_database`, `reset_preview_database`, `disable_extension`, `restore`,
   `delete_restore_point`, `import_database`, `destroy_ephemeral_database`, `execute_sql`,
-  `run_preview_sql`, `update_backup_schedule`, `rotate_app_role`, `sync_integration_env`,
+  `execute_preview_sql`, `update_backup_schedule`, `rotate_app_role`, `sync_integration_env`,
   `upgrade_postgres_major`, `confirm_major_upgrade`, `rollback_major_upgrade`), `false` for the
   ones that only add - so clients can require approval. Reads and writes never share a tool.
 - Connection-string tools are clearly marked secret-bearing; instruct your agent not to persist their
   output.
 - `execute_sql` executes against the live database. Prefer rehearsing risky SQL on a preview created with
-  `create_preview_database` (mode `clone`) through `run_preview_sql`.
+  `create_preview_database` (mode `clone`) through `execute_preview_sql`; `query_preview_sql` reads the
+  preview in a read-only transaction.
 - **Credential hygiene:** the device-login key is org-wide, expires after 90 days, and is meant for
   interactive sessions. For long-lived or shared agent setups, create a **project-scoped key** in the
   dashboard and pass it via `CAPYDB_API_KEY` instead. Every key - including agent-minted ones - is listed
