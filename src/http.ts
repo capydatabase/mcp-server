@@ -160,6 +160,8 @@ export function createCapyDBHttpHandler(options: CapyDBHttpOptions): CapyDBHttpH
       return createCapyDBServer(client, new BearerAuth(token), {
         deviceLogin: false,
         provisionTimeoutMs: options.provisionTimeoutMs,
+        // OAUTH_SCOPES has no organizations:write, so a signed-in caller never holds it.
+        organizationWrite: false,
       });
     },
     {

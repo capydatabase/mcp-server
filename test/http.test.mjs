@@ -1,7 +1,7 @@
 // Exercises the remote HTTP entry against a stub control plane: the lazy-auth
 // gate, token checking, discovery metadata, the tool annotations the Claude
 // connector directory reads, output schemas, and whole tool flows
-// (create_project, import_database, the backup-schedule and notification-preference merges, the
+// (create_project, import_database, the backup-schedule merge, the
 // major-upgrade steps, preview SQL, lint, typegen, log search). Runs against the built bundle (`pnpm test`
 // builds first), so it covers what ships.
 import assert from "node:assert/strict";
@@ -186,7 +186,6 @@ const ADDITIVE_WRITE_TOOLS = [
   "extend_preview_ttl",
   "retry_provisioning",
   "update_extension",
-  "update_notification_preferences",
   "update_project_settings",
 ];
 
@@ -584,11 +583,7 @@ test("the new tools are listed with the right hints", async () => {
   ]) {
     assert.equal(byName.get(name)?.annotations?.destructiveHint, true, `${name} is not destructive`);
   }
-  for (const name of [
-    "retry_provisioning",
-    "enable_app_role",
-    "update_notification_preferences",
-  ]) {
+  for (const name of ["retry_provisioning", "enable_app_role"]) {
     assert.equal(byName.get(name)?.annotations?.destructiveHint, false, `${name} has no write hint`);
   }
   // Every upgrade step needs the person's approval token.
@@ -757,36 +752,47 @@ test("major upgrade steps forward the approval token", async () => {
   assert.match(confirm.content[0].text, /HTTP 403.*not enabled/);
 });
 
-test("update_notification_preferences changes only the fields passed", async () => {
-  const current = {
-    organization_id: "org_1",
-    alert_emails_enabled: true,
-    alert_email_recipients: ["ops@example.com"],
-    billing_email_recipients: ["finance@example.com"],
-    updated_at: null,
-  };
+test("the hosted server does not offer update_notification_preferences", async () => {
+  // The PUT needs organizations:write, which the OAuth sign-in never grants
+  // (OAUTH_SCOPES), so here the tool could only ever answer 403. The stdio
+  // server keeps it (test/stdio.test.mjs).
+  const tools = await listTools();
+  assert.equal(
+    tools.some((tool) => tool.name === "update_notification_preferences"),
+    false,
+  );
+  const before = seen.length;
+  const response = await handler().mcp(
+    rpc(
+      "tools/call",
+      { name: "update_notification_preferences", arguments: { alert_emails_enabled: false } },
+      GOOD_TOKEN,
+    ),
+  );
+  const { result, error } = await rpcResult(response);
+  assert.ok(error !== undefined || result.isError === true, "an unknown tool must not succeed");
+  assert.equal(
+    seen.slice(before).some((entry) => entry.method === "PUT"),
+    false,
+  );
+});
+
+test("get_notification_preferences reads the organization's preferences", async () => {
   route("GET /v1/organizations/org_1/notification-preferences", () => [
     200,
-    { notification_preferences: current },
+    {
+      notification_preferences: {
+        organization_id: "org_1",
+        alert_emails_enabled: true,
+        alert_email_recipients: ["ops@example.com"],
+        billing_email_recipients: [],
+        updated_at: null,
+      },
+    },
   ]);
-  route("PUT /v1/organizations/org_1/notification-preferences", ({ body }) => [
-    200,
-    { notification_preferences: { ...current, ...body, updated_at: "2026-09-30T00:00:00Z" } },
-  ]);
-  const result = await callTool("update_notification_preferences", { alert_emails_enabled: false });
-  assert.notEqual(result.isError, true, result.content[0].text);
-  const put = seen.findLast((entry) => entry.method === "PUT");
-  assert.deepEqual(put.body, {
-    alert_emails_enabled: false,
-    alert_email_recipients: ["ops@example.com"],
-    billing_email_recipients: ["finance@example.com"],
-  });
-
   const read = await callTool("get_notification_preferences", {});
   assert.equal(read.structuredContent.updated_at, null);
-
-  const empty = await callTool("update_notification_preferences", {});
-  assert.equal(empty.isError, true);
+  assert.deepEqual(read.structuredContent.alert_email_recipients, ["ops@example.com"]);
 });
 
 test("execute_preview_sql targets the preview and tags the statement", async () => {

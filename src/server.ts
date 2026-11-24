@@ -21,6 +21,8 @@ export interface CapyDBServerOptions {
   deviceLogin: boolean;
   /** How long `create_project` waits for provisioning; see `RegisterToolsOptions`. */
   provisionTimeoutMs: number;
+  /** Whether the credential can hold `organizations:write`; see `RegisterToolsOptions`. */
+  organizationWrite: boolean;
 }
 
 export function createCapyDBServer(
@@ -62,6 +64,9 @@ export function createCapyDBServer(
     },
     { instructions: instructions.join("\n") },
   );
-  registerTools(server, client, auth, { provisionTimeoutMs: options.provisionTimeoutMs });
+  registerTools(server, client, auth, {
+    provisionTimeoutMs: options.provisionTimeoutMs,
+    organizationWrite: options.organizationWrite,
+  });
   return server;
 }

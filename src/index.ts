@@ -45,7 +45,12 @@ async function main(): Promise<void> {
   // one factory, so hosts that predate the 2026 revision keep working - do not
   // pass `legacy: 'reject'`.
   serveStdio(
-    () => createCapyDBServer(client, auth, { deviceLogin: true, provisionTimeoutMs: 5 * 60_000 }),
+    () =>
+      createCapyDBServer(client, auth, {
+        deviceLogin: true,
+        provisionTimeoutMs: 5 * 60_000,
+        organizationWrite: true,
+      }),
     {
       // Out-of-band transport errors would otherwise be swallowed.
       onerror: (error) => console.error("capydb-mcp: transport error:", error.message),

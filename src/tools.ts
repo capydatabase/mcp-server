@@ -106,6 +106,14 @@ export interface RegisterToolsOptions {
    * must stay inside its platform's request duration limit.
    */
   provisionTimeoutMs: number;
+  /**
+   * Whether the server's credential can hold the `organizations:write` scope.
+   * False on the hosted server: its OAuth sign-in never grants that scope
+   * (`OAUTH_SCOPES` in `http.ts`), so a tool that needs it could only answer
+   * 403 there and is not registered. True over stdio, where an organization
+   * admin's key can carry it.
+   */
+  organizationWrite: boolean;
 }
 
 /**
@@ -504,67 +512,69 @@ export function registerTools(
       ),
   );
 
-  server.registerTool(
-    "update_notification_preferences",
-    {
-      ...writeTool("Update notification preferences", {
-        destructiveHint: false,
-        idempotentHint: true,
-      }),
-      description:
-        "Change the organization's notification emails. Only the fields you pass change; the others keep their current values (read them with get_notification_preferences). " +
-        "A recipient list you pass REPLACES that list - to add an address, pass the current addresses plus the new one. Each list holds at most 10 addresses; duplicates are removed. " +
-        "Turning alert emails off means nobody is emailed about storage, backup or reachability alerts, so only do it when the user asks. Billing notices cannot be switched off. " +
-        "Requires an organization admin or an organization-wide API key minted by one, with the organizations:write scope (HTTP 403 otherwise). " +
-        "The remote CapyDB connector's sign-in does not grant that scope, so there the call is refused with 403 - point the user at the dashboard's notification settings instead.",
-      inputSchema: z.object({
-        organization_id: z
-          .string()
-          .optional()
-          .describe("Organization id. Omit to derive it from the projects the API key can see."),
-        alert_emails_enabled: z
-          .boolean()
-          .optional()
-          .describe("false stops usage, backup and reachability alert emails."),
-        alert_email_recipients: z
-          .array(z.string())
-          .max(10)
-          .optional()
-          .describe("Full list of extra alert email recipients (replaces the current list)."),
-        billing_email_recipients: z
-          .array(z.string())
-          .max(10)
-          .optional()
-          .describe("Full list of extra billing notice recipients (replaces the current list)."),
-      }),
-    },
-    async ({
-      organization_id,
-      alert_emails_enabled,
-      alert_email_recipients,
-      billing_email_recipients,
-    }) =>
-      run(auth, async () => {
-        if (
-          alert_emails_enabled === undefined &&
-          alert_email_recipients === undefined &&
-          billing_email_recipients === undefined
-        ) {
-          throw new Error(
-            "Nothing to change: pass alert_emails_enabled, alert_email_recipients or billing_email_recipients.",
-          );
-        }
-        // The endpoint replaces the whole row with every field required, so
-        // merge the caller's fields onto the current preferences.
-        const organizationId = await resolveOrganizationId(client, organization_id);
-        const current = await client.getNotificationPreferences(organizationId);
-        return client.putNotificationPreferences(organizationId, {
-          alert_emails_enabled: alert_emails_enabled ?? current.alert_emails_enabled,
-          alert_email_recipients: alert_email_recipients ?? current.alert_email_recipients,
-          billing_email_recipients: billing_email_recipients ?? current.billing_email_recipients,
-        });
-      }),
-  );
+  if (options.organizationWrite) {
+    server.registerTool(
+      "update_notification_preferences",
+      {
+        ...writeTool("Update notification preferences", {
+          destructiveHint: false,
+          idempotentHint: true,
+        }),
+        description:
+          "Change the organization's notification emails. Only the fields you pass change; the others keep their current values (read them with get_notification_preferences). " +
+          "A recipient list you pass REPLACES that list - to add an address, pass the current addresses plus the new one. Each list holds at most 10 addresses; duplicates are removed. " +
+          "Turning alert emails off means nobody is emailed about storage, backup or reachability alerts, so only do it when the user asks. Billing notices cannot be switched off. " +
+          "Requires an organization admin or an organization-wide API key minted by one, with the organizations:write scope (HTTP 403 otherwise). " +
+          "The remote CapyDB connector's sign-in does not grant that scope, so there the call is refused with 403 - point the user at the dashboard's notification settings instead.",
+        inputSchema: z.object({
+          organization_id: z
+            .string()
+            .optional()
+            .describe("Organization id. Omit to derive it from the projects the API key can see."),
+          alert_emails_enabled: z
+            .boolean()
+            .optional()
+            .describe("false stops usage, backup and reachability alert emails."),
+          alert_email_recipients: z
+            .array(z.string())
+            .max(10)
+            .optional()
+            .describe("Full list of extra alert email recipients (replaces the current list)."),
+          billing_email_recipients: z
+            .array(z.string())
+            .max(10)
+            .optional()
+            .describe("Full list of extra billing notice recipients (replaces the current list)."),
+        }),
+      },
+      async ({
+        organization_id,
+        alert_emails_enabled,
+        alert_email_recipients,
+        billing_email_recipients,
+      }) =>
+        run(auth, async () => {
+          if (
+            alert_emails_enabled === undefined &&
+            alert_email_recipients === undefined &&
+            billing_email_recipients === undefined
+          ) {
+            throw new Error(
+              "Nothing to change: pass alert_emails_enabled, alert_email_recipients or billing_email_recipients.",
+            );
+          }
+          // The endpoint replaces the whole row with every field required, so
+          // merge the caller's fields onto the current preferences.
+          const organizationId = await resolveOrganizationId(client, organization_id);
+          const current = await client.getNotificationPreferences(organizationId);
+          return client.putNotificationPreferences(organizationId, {
+            alert_emails_enabled: alert_emails_enabled ?? current.alert_emails_enabled,
+            alert_email_recipients: alert_email_recipients ?? current.alert_email_recipients,
+            billing_email_recipients: billing_email_recipients ?? current.billing_email_recipients,
+          });
+        }),
+    );
+  }
 
   // ---- K/V stores ----------------------------------------------------------
 
