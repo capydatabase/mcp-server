@@ -254,6 +254,16 @@ test("descriptions state facts, name only tools that exist, and leave the orders
   for (const name of ["query_sql", "execute_sql"]) {
     assert.match(byName.get(name).description, /the project's CapyDB Postgres database/, name);
   }
+  // The portal takes a tool with a free-form input for a pass-through and asks
+  // it to "reference the target API docs in the description": the SQL tools end
+  // with the public docs, and so would any tool that took a field named body.
+  const docs = /Documentation: https:\/\/docs\.capydb\.dev\/docs\/guides\/integrations\/claude\.$/;
+  for (const name of ["query_sql", "execute_sql", "query_preview_sql", "execute_preview_sql"]) {
+    assert.match(byName.get(name).description, docs, name);
+  }
+  for (const tool of tools) {
+    if ("body" in (tool.inputSchema.properties ?? {})) assert.match(tool.description, docs, tool.name);
+  }
   // The hosted server has no device login to start or to relay.
   for (const tool of tools) assert.doesNotMatch(tool.description, /device login/i, tool.name);
   assert.doesNotMatch(result.instructions, /device.login/i);

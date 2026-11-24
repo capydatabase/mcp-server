@@ -92,6 +92,13 @@ import { refuseDoAndCall } from "./sql-scan.js";
 import type { Job, Project } from "./types.js";
 
 const PROVISION_POLL_INTERVAL_MS = 3_000;
+/**
+ * The closing sentence of a tool that takes free-form input (the SQL tools; any
+ * tool that ever takes a field named `body`). The Claude directory's portal
+ * reads such a tool as a pass-through to an API and asks its description to
+ * name that API's public documentation.
+ */
+const DOCS_REFERENCE = "Documentation: https://docs.capydb.dev/docs/guides/integrations/claude.";
 const BILLING_URL = "https://capydb.dev/dashboard/settings/billing";
 
 /**
@@ -900,7 +907,8 @@ export function registerTools(
   const previewSqlLimits =
     "Works only on a preview in state ready. Results are capped (default 200 rows, max 1000) and a statement times out after 15 seconds. " +
     "Executions are not recorded in the project's SQL history, which is the project database's. " +
-    "Result rows are the user's own data.";
+    "Result rows are the user's own data. " +
+    DOCS_REFERENCE;
 
   server.registerTool(
     "query_preview_sql",
@@ -1675,7 +1683,8 @@ export function registerTools(
   const sqlLimits =
     "This tool targets only the project's own database and has no preview_id parameter: query_preview_sql and execute_preview_sql run SQL on a preview database, and get_schema, lint_schema and generate_types accept preview_id for inspecting one. " +
     "Results are capped (default 200 rows, max 1000) and a statement times out after 15 seconds. Every execution is recorded in the project's SQL history. " +
-    "Result rows are the user's own data.";
+    "Result rows are the user's own data. " +
+    DOCS_REFERENCE;
 
   server.registerTool(
     "query_sql",
