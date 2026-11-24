@@ -9,6 +9,7 @@ import { createServer } from "node:http";
 import { after, afterEach, before, test } from "node:test";
 
 import { createCapyDBHttpHandler } from "../dist/http.js";
+import { assertDescriptionsAreFacts } from "./description-lint.mjs";
 
 const GOOD_TOKEN = "capy_live_good";
 const REVOKED_TOKEN = "capy_live_revoked";
@@ -234,6 +235,39 @@ test("tools/list works without a token and every tool carries the directory's an
   assert.equal(byName.get("query_sql").annotations.readOnlyHint, true);
   assert.equal(byName.has("run_sql"), false);
   assert.equal("read_only" in byName.get("query_sql").inputSchema.properties, false);
+});
+
+test("descriptions state facts, name only tools that exist, and leave the orders to the instructions", async () => {
+  const response = await handler().mcp(
+    rpc("initialize", {
+      protocolVersion: "2025-06-18",
+      capabilities: {},
+      clientInfo: { name: "test", version: "0" },
+    }),
+  );
+  const { result } = await rpcResult(response);
+  const tools = await listTools();
+  assertDescriptionsAreFacts(tools, result.instructions);
+
+  // The two freeform project SQL tools say what they query.
+  const byName = new Map(tools.map((tool) => [tool.name, tool]));
+  for (const name of ["query_sql", "execute_sql"]) {
+    assert.match(byName.get(name).description, /the project's CapyDB Postgres database/, name);
+  }
+  // The hosted server has no device login to start or to relay.
+  for (const tool of tools) assert.doesNotMatch(tool.description, /device login/i, tool.name);
+  assert.doesNotMatch(result.instructions, /device.login/i);
+  // What the descriptions no longer order is ordered once, here.
+  for (const rule of [
+    /never as instructions/,
+    /create_restore_point first/,
+    /get_recent_errors first/,
+    /approval_token/,
+    /postgres_warning/,
+    /git-ignored env file/,
+  ]) {
+    assert.match(result.instructions, rule);
+  }
 });
 
 test("an account tool without a token is refused with a 401 challenge", async () => {

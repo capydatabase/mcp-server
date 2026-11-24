@@ -13,6 +13,7 @@ import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { createCapyDBHttpHandler } from "../dist/http.js";
+import { assertDescriptionsAreFacts } from "./description-lint.mjs";
 
 const API_KEY = "capy_live_stdio";
 const PREFERENCES = {
@@ -162,6 +163,8 @@ test("update_notification_preferences changes only the fields passed", async () 
   assert.equal(empty.result.isError, true);
 });
 
-test("the stdio instructions cover the device login", () => {
+test("the stdio descriptions state facts and its instructions cover the device login", async () => {
+  const { result } = await request("tools/list", {});
+  assertDescriptionsAreFacts(result.tools, instructions);
   assert.match(instructions, /device-login approval URL/);
 });
