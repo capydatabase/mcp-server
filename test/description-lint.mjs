@@ -87,8 +87,8 @@ function unknownIdentifiers(text, known) {
 }
 
 /**
- * Asserts every tool description, every parameter description and the server
- * instructions against the rules above. `instructions` are orders by design,
+ * Asserts every tool description, every input and output field description and
+ * the server instructions against the rules above. `instructions` are orders by design,
  * so only the tool names in them are checked.
  */
 export function assertDescriptionsAreFacts(tools, instructions) {
@@ -123,9 +123,11 @@ export function assertDescriptionsAreFacts(tools, instructions) {
     if (!/^[A-Z][a-z]+s\b/.test(tool.description)) {
       problems.push(`${tool.name}: does not open with a third-person verb`);
     }
-    const params = [];
-    paramDescriptions(tool.inputSchema, tool.name, params);
-    for (const [path, text] of params) check(path, text);
+    // Field descriptions travel in tools/list too, in both schemas.
+    const fields = [];
+    paramDescriptions(tool.inputSchema, `${tool.name} input`, fields);
+    paramDescriptions(tool.outputSchema, `${tool.name} output`, fields);
+    for (const [path, text] of fields) check(path, text);
   }
 
   // Every tool the instructions name has to exist on this server.

@@ -87,7 +87,7 @@ export const projectSchema = conforms<Project>()(
     environment: z.string().describe("production or non_production."),
     always_on: z
       .boolean()
-      .describe("true: never sleeps. false: scales to zero when idle and wakes on connect."),
+      .describe("true: stays awake. false: scales to zero when idle and wakes on connect."),
     runtime_status: nullableString.describe("active, paused or resuming."),
     region: z.string(),
     plan: z.string(),
@@ -153,7 +153,7 @@ export const kvStoreSchema = conforms<KVStore>()(
       "Present while stopped: org_suspended means the organization is offline for a suspension; the data is kept and the store starts again when it lifts.",
     ),
     maxmemory_mb: z.number().describe("Storable capacity."),
-    mem_max_mb: z.number().describe("Memory ceiling of the cell; NOT usable capacity."),
+    mem_max_mb: z.number().describe("Memory ceiling of the cell, which is not usable capacity."),
     maxmemory_policy: z.string(),
     persistence: z.string(),
     last_error: nullableString,
@@ -510,7 +510,7 @@ export const lintSchema = conforms<LintReport>()(
         object: z.string(),
         message: z.string(),
         fix: nullableString.describe(
-          "A statement to review and run yourself; never applied for you.",
+          "A statement that fixes the finding. It is a suggestion; nothing applies it.",
         ),
       }),
     ),

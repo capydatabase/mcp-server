@@ -42,7 +42,7 @@ that descriptions hold no instructions.
   the plain `DROP INDEX` locks the table, a rollback discards the writes since the cutover - and
   what to do about it is said once, in the server `instructions`: secrets, untrusted content, what
   to ask the user first, SQL and data, jobs and failures, ephemeral databases. Parameter
-  descriptions follow the same rules.
+  and result-field descriptions follow the same rules.
 - `query_sql`, `execute_sql`, `query_preview_sql` and `execute_preview_sql` end their descriptions
   with the public documentation URL, which the portal asks of a tool that takes free-form input;
   `query_sql` and `execute_sql` name what they run against (the project's CapyDB Postgres database).
