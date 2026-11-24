@@ -28,7 +28,9 @@ claude mcp add --transport http capydb https://mcp.capydb.dev/mcp
 a tool that needs an account is answered with an HTTP `401` challenge, and the client runs the OAuth
 flow: the CapyDB control plane (`https://api.capydb.dev`) is the authorization server, the user signs
 in and picks a workspace in the dashboard, and the access token is an agent API key (listed and
-revocable under **Settings → API keys**, expiring after 90 days). See
+revocable under **Settings → API keys**, expiring after 90 days). The key is recorded as minted for
+this endpoint (RFC 8707), and the server refuses a key minted for a different one; API keys from the
+dashboard or the CLI carry no such binding and are accepted. See
 [docs.capydb.dev/docs/guides/integrations/claude](https://docs.capydb.dev/docs/guides/integrations/claude).
 
 The same code serves both transports: `src/http.ts` is the remote entry, deployed to Vercel from this

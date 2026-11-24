@@ -6,6 +6,68 @@ All notable changes to `@capydb/mcp` are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-11-24
+
+Prepared for the Claude directory's review: the portal's sync flagged every tool's annotations,
+its criteria reject a tool that both reads and writes, and the submission form has the owner attest
+that descriptions hold no instructions.
+
+### Changed
+
+- **Breaking:** `run_preview_sql` is replaced by two tools, with no alias. `query_preview_sql` runs a
+  statement on a preview inside a `READ ONLY` transaction and is annotated read-only;
+  `execute_preview_sql` is the tool that may change the preview, annotated destructive, and the only
+  one that takes `allow_unqualified_writes`. The read-only guarantee is the database's: the tool
+  sends `read_only: true` and the control plane opens the transaction read-only (its preview SQL
+  endpoint has taken that option since 2026-09-30), so the preview's Postgres refuses a write.
+  Nothing in this server parses the statement to decide. Allowlists and prompts that name
+  `run_preview_sql` need the new names.
+- **Breaking:** the hosted server (`https://mcp.capydb.dev/mcp`) no longer offers
+  `update_notification_preferences`. It needs the `organizations:write` scope, which the OAuth
+  sign-in never grants, so every call there answered 403. The local stdio server still offers it. A
+  client that sent its own `organizations:write` API key as the bearer to the hosted server loses
+  the tool there. The hosted server now lists 72 tools (30 that write), the stdio server 73 (31).
+- **Breaking:** the license is `LGPL-3.0-only` (was MIT). `LICENSE` holds the GNU Lesser General
+  Public License, version 3, and `COPYING` the GNU General Public License it builds on; both ship in
+  the package. Versions up to 2.8.1 stay under the MIT license.
+- Every tool sends its title twice, as `title` and as `annotations.title`, and states
+  `readOnlyHint` as an explicit boolean (`false` on the tools that write, which also state
+  `destructiveHint`). The directory's portal takes the listing name from `annotations.title` and
+  reported the top-level title alone as "Missing title annotation" on all 72 tools. Which tools are
+  destructive has not changed.
+- Tool descriptions state facts and give no orders. All of them are rewritten in the third person to
+  say what the tool does, takes and returns, with its limits and failure answers, and name another
+  tool only as a fact (the counterpart, the tool that returns an id). The safety content is kept as
+  fact - connection URLs embed live credentials, a shared-library extension restarts the database,
+  the plain `DROP INDEX` locks the table, a rollback discards the writes since the cutover - and
+  what to do about it is said once, in the server `instructions`: secrets, untrusted content, what
+  to ask the user first, SQL and data, jobs and failures, ephemeral databases. Parameter
+  descriptions follow the same rules.
+- `query_sql`, `execute_sql`, `query_preview_sql` and `execute_preview_sql` end their descriptions
+  with the public documentation URL, which the portal asks of a tool that takes free-form input;
+  `query_sql` and `execute_sql` name what they run against (the project's CapyDB Postgres database).
+
+### Added
+
+- The hosted server refuses an access token that was minted for a different MCP endpoint (RFC 8707
+  audience binding), with the same `401` `WWW-Authenticate` challenge a revoked token gets. The
+  control plane records the `resource` an OAuth client names on the key it mints and reports it as
+  `principal.resource` on `GET /v1/me`. A key with no recorded resource is accepted as before: every
+  existing connection, dashboard and CLI API keys, clients that send no `resource`, and a control
+  plane that does not report the field yet. The stdio server is unaffected.
+  `CAPYDB_MCP_RESOURCE_URL` and the control plane's `CAPYDB_OAUTH_RESOURCES` are KEEP IN LOCKSTEP.
+- `pnpm test` also runs the stdio bin as a child process against a stub control plane
+  (`test/stdio.test.mjs`), and `test/description-lint.mjs` fails a description that holds a
+  directive word, an imperative sentence, an order about the user, text outside printable ASCII, or
+  a snake_case name that is neither a registered tool nor a schema field.
+
+### Fixed
+
+- `get_ephemeral_database` named `get_project_connections`, a tool that does not exist; a claimed
+  database's connection strings come from `get_connection_strings`.
+- `claim_ephemeral_database` said the call "starts the device login", which the hosted server does
+  not have; it now says a signed-in account with an active subscription is required.
+
 ## [2.8.1] - 2026-11-20
 
 ### Changed
