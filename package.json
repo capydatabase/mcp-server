@@ -15,14 +15,15 @@
     "type": "git",
     "url": "git+https://github.com/capydatabase/mcp-server.git"
   },
-  "license": "MIT",
+  "license": "LGPL-3.0-only",
   "type": "module",
   "bin": {
     "capydb-mcp": "./dist/index.js"
   },
   "files": [
     "dist",
-    "LICENSE"
+    "LICENSE",
+    "COPYING"
   ],
   "scripts": {
     "build": "tsdown",

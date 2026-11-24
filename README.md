@@ -260,4 +260,8 @@ The API client is hand-written against the control plane's OpenAPI spec
 
 ## License
 
-MIT
+Copyright (C) 2026 capydatabase.
+
+LGPL-3.0-only. See [LICENSE](LICENSE) for the GNU Lesser General Public License, version 3, and
+[COPYING](COPYING) for the GNU General Public License it builds on. Versions up to 2.8.1 were
+released under the MIT license.
